@@ -1,0 +1,80 @@
+{
+  "name": "hospai-desktop",
+  "version": "1.0.1",
+  "private": true,
+  "description": "HospAI offline desktop",
+  "main": "electron/main.js",
+  "author": "Kalpra Tech Solutions",
+  "scripts": {
+    "build:frontend": "cd frontend && set PUPPETEER_SKIP_DOWNLOAD=true&& npm run build",
+    "build:backend": "cd backend && python -m pip install -r requirements.txt pyinstaller && pyinstaller --clean --noconfirm HospAI_Backend.spec",
+    "verify:desktop": "node scripts/verify-desktop-build.js",
+    "dist:no-sign": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& set WIN_CSC_LINK=&& set WIN_CSC_KEY_PASSWORD=&& electron-builder --win nsis --x64 --publish never",
+    "build:desktop": "npm run build:frontend && npm run build:backend && npm run verify:desktop && npm run dist:no-sign"
+  },
+  "devDependencies": {
+    "electron": "31.7.7",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.kalpratech.hospai.desktop",
+    "productName": "HospAI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "installer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/dist",
+        "to": "frontend"
+      },
+      {
+        "from": "backend/dist/HospAI_Backend.exe",
+        "to": "backend/HospAI_Backend.exe"
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logo_square.png",
+      "signAndEditExecutable": false,
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HospAI",
+      "artifactName": "HospAI_Setup.exe",
+      "allowElevation": true,
+      "include": "installer/installer.nsh",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "HospAI_Portable.exe"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+HospAI final patch notes
+
+Applied fixes:
+- Removed unprofessional monkey password icon and replaced it with professional eye / eye-off SVG icons while keeping show/hide password behavior.
+- Patient registration payload now sends selected phone country codes to backend validation.
+- Primary, alternate, and emergency mobile fields are capped to the exact digit length for the selected country code.
+- +91 India numbers are restricted to exactly 10 digits in frontend and backend validation.
+- License generator accepts exact expiry time including AM/PM. If only date is supplied, HospAI expires at 11:59:59 PM.
+
+Verification performed in this environment:
+- Python compile check passed for backend/app.py and license_tools/generate_license.py.
+- PostgreSQL database hospai is initialized without bundling a local database file.
+
+Build on Windows:
+  .\BUILD_DESKTOP_WINDOWS.bat
+
+Final output:
+  release\HospAI_Setup.exe
+  release\HospAI_Portable.exe

@@ -1,0 +1,22 @@
+HospAI short-path package
+
+Folder path is shortened to:
+  HospAI_shortpath/
+
+Important:
+  frontend/node_modules is intentionally removed to avoid Windows long-path extraction errors.
+  Install it again on your machine using npm install.
+
+Backend commands:
+  cd HospAI_shortpath/backend
+  python -m venv venv
+  venv\Scripts\activate
+  pip install -r requirements.txt
+  python app.py
+
+Frontend commands:
+  cd HospAI_shortpath/frontend
+  npm install
+  npm run dev
+
+Production frontend build already exists in frontend/dist from the previous fixed package.

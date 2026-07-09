@@ -1,0 +1,31 @@
+HospAI License Commands
+=======================
+
+1) Client opens HospAI and shares the Device ID from the activation page.
+The Device ID text box and Copy Device ID button both copy the Device ID.
+
+2) Generate a mandatory 9-character activation code:
+
+  python license_tools\generate_license.py --device-id "HOSPAI-XXXX-XXXX-XXXX" --hospital "Hospital Name" --expiry "2026-06-25 05:30 PM"
+
+Output must show:
+  Activation Code: 123456789
+  Code Length: 9
+
+Supported expiry formats:
+  YYYY-MM-DD
+  YYYY-MM-DD HH:MM:SS
+  YYYY-MM-DD hh:mm AM
+  YYYY-MM-DD hh:mm PM
+
+Important: the mandatory 9-character code stores expiry up to minute precision.
+Example: 05:30 PM expires at 05:30:00 PM.
+If only date is supplied, HospAI treats the expiry as 11:59 PM on that date.
+
+3) Local blocking on a client system:
+
+  python license_tools\block_local_license.py --block --reason "Blocked by admin"
+
+4) Remove local block:
+
+  python license_tools\block_local_license.py --unblock
