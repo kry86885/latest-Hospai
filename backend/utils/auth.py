@@ -26,14 +26,13 @@ ADMIN_ROUTE_AUTH_TTL_SECONDS = int(os.getenv("ADMIN_ROUTE_AUTH_TTL_SECONDS", "36
 ADMIN_ROUTE_AUTH_SECRET = os.getenv("ADMIN_ROUTE_AUTH_SECRET", "") or SESSION_PEPPER or "hospai-admin-route-auth"
 
 USER_TYPES = ("admin", "normal")
-ASSIGNABLE_MODULES = ("dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai")
+ASSIGNABLE_MODULES = ("dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai")
 DEFAULT_NORMAL_MODULES = ("dashboard", "patients")
 
 MODULE_PERMISSION_MAP = {
     "dashboard": {"patients.read"},
     "patients": {"patients.read", "patients.write"},
     "billing": {"billing.read", "billing.write"},
-    "pharmacy": {"pharmacy.read", "pharmacy.write"},
     "lab": {"lab.read", "lab.write"},
     "hrms": {"hr.read", "hr.write"},
     "ot": {"ot.read", "ot.write"},
@@ -50,8 +49,6 @@ ADMIN_PERMISSIONS = {
     "employees.write",
     "billing.read",
     "billing.write",
-    "pharmacy.read",
-    "pharmacy.write",
     "lab.read",
     "lab.write",
     "hr.read",
@@ -184,7 +181,7 @@ def default_modules_for_legacy(access_role: Optional[str], legacy_role: Optional
     if normalized_access_role in {"owner", "hr_manager"} or normalized_legacy_role == "employee":
         return list(ASSIGNABLE_MODULES)
     if normalized_access_role == "clinician":
-        return ["dashboard", "patients", "lab", "pharmacy"]
+        return ["dashboard", "patients", "lab"]
     if normalized_access_role == "receptionist":
         return ["dashboard", "patients", "billing"]
 

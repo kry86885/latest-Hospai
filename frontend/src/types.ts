@@ -1,5 +1,5 @@
 export type UserType = "admin" | "normal";
-export type ModuleId = "dashboard" | "patients" | "billing" | "pharmacy" | "lab" | "hrms" | "ot" | "accounts" | "reports";
+export type ModuleId = "dashboard" | "patients" | "billing" | "lab" | "hrms" | "ot" | "accounts" | "reports";
 
 export interface UserTypeOption {
   value: UserType;

@@ -274,7 +274,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
     return match?.count || 0;
   };
   const labRevenue = findCollectionAmount(["lab", "diagnostic"]);
-  const pharmacyRevenue = findCollectionAmount(["pharmacy", "pharma"]);
   const todayRevenue = summary.total_collected;
   const monthlyRevenue = summary.total_collected;
   const pendingPayments = summary.total_due;
@@ -956,7 +955,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <option value="OP">OP</option>
                 <option value="IP">IP</option>
                 <option value="LAB">Lab</option>
-                <option value="PHARMACY">Pharmacy</option>
               </Select>
             </Label>
             <Label>
@@ -1055,7 +1053,7 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <Input
                   value={paymentForm.payment_for}
                   onChange={(event) => setPaymentForm((current) => ({ ...current, payment_for: event.target.value }))}
-                  placeholder="Pharmacy, Lab and Diagnostics..."
+                  placeholder="Lab, Diagnostics, OP billing..."
                   aria-label="Billing payment for"
                 />
               </Label>
@@ -1362,7 +1360,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <option value="OP">OP</option>
                 <option value="IP">IP</option>
                 <option value="LAB">Lab</option>
-                <option value="PHARMACY">Pharmacy</option>
               </Select>
             </Label>
             <Label>
@@ -1501,7 +1498,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
             {[
               { label: "Today Revenue", icon: "🏥", value: todayRevenue },
               { label: "Lab & Diagnostic Billing", icon: "🧪", value: labRevenue },
-              { label: "Pharmacy Revenue", icon: "💊", value: pharmacyRevenue },
               { label: "Monthly Revenue", icon: "📅", value: monthlyRevenue },
               { label: "Pending Payments", icon: "⚠️", value: pendingPayments },
               { label: "Doctor Payout Ready", icon: "👨‍⚕️", value: doctorPayoutReady },

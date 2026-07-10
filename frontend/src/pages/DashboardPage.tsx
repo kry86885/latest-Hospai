@@ -229,7 +229,7 @@ export default function DashboardPage({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [todayPatientsOpen, setTodayPatientsOpen] = useState(false);
-  const [revenuePopup, setRevenuePopup] = useState<"today" | "monthly" | "lab" | "pharmacy" | null>(null);
+  const [revenuePopup, setRevenuePopup] = useState<"today" | "monthly" | "lab" | null>(null);
   const [viewPatient, setViewPatient] = useState<Patient | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const dashboardProfileRef = useRef<HTMLDivElement | null>(null);
@@ -397,7 +397,6 @@ export default function DashboardPage({
   const monthlyRevenue = hospitalSummary?.revenue?.monthly_total ?? hospitalSummary?.revenue?.total ?? 0;
   const todayRevenue = hospitalSummary?.revenue?.today_total ?? 0;
   const dueRevenue = hospitalSummary?.revenue?.due || 0;
-  const pharmSales = hospitalSummary?.pharmacy_summary?.monthly_sales || 0;
   const diagIncome = hospitalSummary?.diagnostics_summary?.monthly_income || 0;
   const doctorPayoutReady = hospitalSummary?.revenue?.doctor_payout_ready || 0;
   const revenueBreakdown = hospitalSummary?.revenue?.module_breakdown || {};
@@ -432,37 +431,26 @@ export default function DashboardPage({
         { module: "Pending / Due", amount: 0 },
       ];
     }
-    if (revenuePopup === "pharmacy") {
-      return [
-        { module: "Pharmacy", amount: pharmSales },
-        { module: "Collected", amount: pharmSales },
-        { module: "Pending / Due", amount: 0 },
-      ];
-    }
     const activeBreakdown = revenuePopup === "today" ? todayRevenueBreakdown : monthlyRevenueBreakdown;
     const activeTotal = revenuePopup === "today" ? todayRevenue : monthlyRevenue;
     const labAmount = Number(activeBreakdown.lab_diagnostics ?? (revenuePopup === "today" ? 0 : diagIncome));
-    const pharmacyAmount = Number(activeBreakdown.pharmacy ?? (revenuePopup === "today" ? 0 : pharmSales));
-    const opAmount = Number(activeBreakdown.op_billing ?? Math.max(activeTotal - labAmount - pharmacyAmount, 0));
+    const opAmount = Number(activeBreakdown.op_billing ?? Math.max(activeTotal - labAmount, 0));
     return [
       { module: "OP / Billing", amount: opAmount },
       { module: "Lab & Diagnostics", amount: labAmount },
-      { module: "Pharmacy", amount: pharmacyAmount },
       { module: "Pending / Due", amount: dueRevenue },
     ];
-  }, [revenuePopup, todayRevenue, monthlyRevenue, diagIncome, pharmSales, dueRevenue, todayRevenueBreakdown, monthlyRevenueBreakdown]);
+  }, [revenuePopup, todayRevenue, monthlyRevenue, diagIncome, dueRevenue, todayRevenueBreakdown, monthlyRevenueBreakdown]);
 
-  const revenuePopupTotal = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : revenuePopup === "pharmacy" ? pharmSales : monthlyRevenue;
-  const revenuePopupCollected = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : revenuePopup === "pharmacy" ? pharmSales : monthlyRevenue;
-  const revenuePopupOutstanding = revenuePopup === "lab" || revenuePopup === "pharmacy" ? 0 : dueRevenue;
+  const revenuePopupTotal = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : monthlyRevenue;
+  const revenuePopupCollected = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : monthlyRevenue;
+  const revenuePopupOutstanding = revenuePopup === "lab" ? 0 : dueRevenue;
   const revenuePopupTitle =
     revenuePopup === "today"
       ? "Today's Revenue Details"
       : revenuePopup === "lab"
         ? "Lab Revenue Details"
-        : revenuePopup === "pharmacy"
-          ? "Pharmacy Revenue Details"
-          : "Monthly Revenue Details";
+        : "Monthly Revenue Details";
 
   const downloadRevenuePopupPdf = () => {
     if (!revenuePopup) return;
@@ -706,14 +694,6 @@ export default function DashboardPage({
           iconBg="linear-gradient(135deg,#3b82f6,#2563eb)"
           onClick={() => setRevenuePopup("lab")}
         />
-        <KpiCard
-          icon={<svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M9 7h6M9 17h6"/></svg>}
-          label="Pharmacy Revenue"
-          value={formatCurrencyShort(pharmSales)}
-          sub="Current month pharmacy sales"
-          iconBg="linear-gradient(135deg,#ec4899,#db2777)"
-          onClick={() => setRevenuePopup("pharmacy")}
-        />
       </div>
 
       {/* Row 2: Quick Actions | Today's Operations */}
@@ -794,12 +774,11 @@ export default function DashboardPage({
               {[
                 { label: "Today Revenue", icon: "🏥", value: todayRevenue },
                 { label: "Lab & Diagnostic Billing", icon: "🧪", value: diagIncome },
-                { label: "Pharmacy Revenue", icon: "💊", value: pharmSales },
                 { label: "Monthly Revenue", icon: "📅", value: monthlyRevenue },
                 { label: "Pending Payments", icon: "⚠️", value: dueRevenue },
                 { label: "Doctor Payout Ready", icon: "👨‍⚕️", value: doctorPayoutReady },
               ].map((row) => (
-                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Pharmacy") ? "pharmacy" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-record-payment")}>
+                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-record-payment")}>
                   <span className="hosp-rev-icon">{row.icon}</span>
                   <span className="hosp-rev-label">{row.label}</span>
                   <span className="hosp-rev-value">{formatCurrencyShort(row.value)}</span>

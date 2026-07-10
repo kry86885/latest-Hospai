@@ -633,7 +633,7 @@ def ensure_user_columns(conn):
     )
     default_modules_normal = json.dumps(["dashboard", "patients"], separators=(",", ":"))
     default_modules_admin = json.dumps(
-        ["dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports"],
+        ["dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports"],
         separators=(",", ":"),
     )
     cursor.execute(

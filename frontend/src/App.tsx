@@ -22,7 +22,6 @@ import BillingClaimsPage from "./pages/BillingClaimsPage";
 import BillingInvoicesPage from "./pages/BillingInvoicesPage";
 import BillingPaymentModesPage from "./pages/BillingPaymentModesPage";
 import BillingCollectionsPage from "./pages/BillingCollectionsPage";
-import PharmacyPage from "./pages/PharmacyPage";
 import LabPage from "./pages/LabPage";
 import HrmsPage from "./pages/HrmsPage";
 import OtPage from "./pages/OtPage";
@@ -43,7 +42,7 @@ import { apiFetch, clearAuthToken, getAuthHeaders, getHospitalCode, reportError,
 import { resolvePermissions } from "./lib/format";
 import type { DashboardAnalytics, HospitalSummary, Notice, Patient, Stats, User } from "./types";
 
-type SidebarIconName = "dashboard" | "add" | "patients" | "readmit" | "billing" | "pharmacy" | "lab" | "hrms" | "ot" | "employees" | "settings" | "logout" | "profile" | "appointment";
+type SidebarIconName = "dashboard" | "add" | "patients" | "readmit" | "billing" | "lab" | "hrms" | "ot" | "employees" | "settings" | "logout" | "profile" | "appointment";
 
 const NAV_ICON_MAP: Record<string, SidebarIconName> = {
   dashboard: "dashboard",
@@ -64,7 +63,6 @@ const NAV_ICON_MAP: Record<string, SidebarIconName> = {
   "billing-invoices": "billing",
   "billing-mode-breakdown": "billing",
   "billing-module-collections": "billing",
-  pharmacy: "pharmacy",
   lab: "lab",
   hrms: "hrms",
   ot: "ot",
@@ -121,12 +119,6 @@ function SidebarIcon({ name }: { name: SidebarIconName }) {
       <>
         <rect x="3" y="4" width="18" height="16" rx="2" {...stroke} />
         <path d="M7 9h10M7 13h6M7 17h4" {...stroke} />
-      </>
-    ),
-    pharmacy: (
-      <>
-        <rect x="7" y="3" width="10" height="18" rx="3" {...stroke} />
-        <path d="M9 7h6M9 17h6" {...stroke} />
       </>
     ),
     lab: (
@@ -976,8 +968,6 @@ function App() {
         {page === "billing-invoices" && hasPermission("billing.read") && <BillingInvoicesPage setNotice={setNotice} />}
         {page === "billing-mode-breakdown" && hasPermission("billing.read") && <BillingPaymentModesPage setNotice={setNotice} />}
         {page === "billing-module-collections" && hasPermission("billing.read") && <BillingCollectionsPage setNotice={setNotice} />}
-
-        {page === "pharmacy" && hasPermission("pharmacy.read") && <PharmacyPage setNotice={setNotice} />}
 
         {page === "lab" && hasPermission("lab.read") && <LabPage setNotice={setNotice} />}
 
