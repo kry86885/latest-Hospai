@@ -176,6 +176,8 @@ type DoctorScheduleOption = {
   id: number;
   doctor_name?: string;
   department?: string;
+  consultation_fee?: number | null;
+  review_fee?: number | null;
 };
 
 const safeText = (value: unknown) => String(value ?? "-")
@@ -550,7 +552,12 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
   const handleScheduleAppointmentToken = async () => {
     const patientName = appointment.appointmentPatientName.trim() || currentPatientName.trim();
     const appointmentDate = appointment.appointmentDateTime;
-    const consultationFee = Number(appointment.consultationFee || 0);
+    const doctorName = appointment.doctor.trim();
+    const selectedDoctorFee = doctorName ? doctorScheduleOptions.find((item) => String(item.doctor_name || "").trim() === doctorName) : undefined;
+    const resolvedFee = (appointment.appointmentKind === "Follow Up" || appointment.appointmentKind === "Review")
+      ? Number(selectedDoctorFee?.review_fee ?? appointment.consultationFee || 0)
+      : Number(selectedDoctorFee?.consultation_fee ?? appointment.consultationFee || 0);
+    const consultationFee = Number.isFinite(resolvedFee) ? resolvedFee : 0;
     if (!patientName || !appointmentDate) {
       setNotice({ type: "error", message: "Patient name and appointment date/time are required to generate token." });
       return;
@@ -569,7 +576,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
         doctor_name: appointment.doctor.trim() || undefined,
         appointment_date: appointmentDate,
         status: "scheduled",
-        appointment_kind: appointment.appointmentKind === "Follow Up" ? "follow_up" : "new",
+        appointment_kind: appointment.appointmentKind === "Follow Up" ? "follow_up" : appointment.appointmentKind === "Review" ? "review" : "new",
         notes: appointment.additionalNotes.trim() || appointment.chiefComplaint.trim() || undefined,
         consultation_fee: consultationFee,
         payment_mode: appointment.paymentMode || "cash",

@@ -78,8 +78,7 @@ describe("OpPage", () => {
 
     expect(container.textContent).toContain("OP Desk");
     expect(container.textContent).toContain("Doctor Schedule");
-    expect(container.textContent).toContain("Doctor Schedule");
-    expect(container.textContent).toContain("Reminders Sent");
+    expect(container.textContent).not.toContain("Reminders Sent");
     expect(container.querySelector('input[aria-label="Doctor name"]')).toBeTruthy();
 
     act(() => {

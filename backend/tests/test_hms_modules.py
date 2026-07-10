@@ -212,6 +212,50 @@ def test_extended_patient_management_flow(app_client):
     assert op_summary_after_no_show["no_shows"] >= 1
 
 
+def test_doctor_schedules_support_multiple_dates_and_follow_up_fee_resolution(app_client):
+    _owner_login(app_client)
+    patient_id = app_client.post("/api/patients", json=_patient_payload(700003)).get_json()["patient_id"]
+
+    schedule_response = app_client.post(
+        "/api/op/doctor-schedules",
+        json={
+            "doctor_name": "Dr. Multi",
+            "department": "General Medicine",
+            "schedule_date": "2026-03-03,2026-03-05",
+            "start_time": "09:00",
+            "end_time": "13:00",
+            "slot_capacity": 8,
+            "consultation_fee": 150,
+            "review_fee": 75,
+        },
+    )
+    assert schedule_response.status_code == 200
+
+    schedules = app_client.get("/api/op/doctor-schedules").get_json()["schedules"]
+    created_for_doctor = [item for item in schedules if item["doctor_name"] == "Dr. Multi"]
+    assert len(created_for_doctor) == 2
+
+    appointment_response = app_client.post(
+        "/api/appointments",
+        json={
+            "patient_id": patient_id,
+            "patient_name": "HMS700003 Patient",
+            "visit_type": "OP",
+            "department": "General Medicine",
+            "doctor_name": "Dr. Multi",
+            "appointment_date": "2026-03-05T10:00:00",
+            "appointment_kind": "follow_up",
+            "consultation_fee": 0,
+        },
+    )
+    assert appointment_response.status_code == 200
+    appointment_payload = appointment_response.get_json()
+    appointments = app_client.get("/api/appointments?date=2026-03-05").get_json()["appointments"]
+    matching = [item for item in appointments if item["id"] == appointment_payload["appointment_id"]]
+    assert matching
+    assert matching[0]["consultation_fee"] == 75
+
+
 def test_billing_pharmacy_lab_summary_and_dashboard(app_client):
     _owner_login(app_client)
     suffix = uuid.uuid4().hex[:6]

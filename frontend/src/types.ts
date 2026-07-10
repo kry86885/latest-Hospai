@@ -248,6 +248,7 @@ export interface Appointment {
   follow_up_for?: number | null;
   reminder_sent_at?: string | null;
   no_show_marked?: boolean | number;
+  consultation_fee?: number | null;
   notes?: string | null;
   created_at?: string;
 }
@@ -260,6 +261,8 @@ export interface DoctorSchedule {
   start_time: string;
   end_time: string;
   slot_capacity?: number | null;
+  consultation_fee?: number | null;
+  review_fee?: number | null;
   status?: string | null;
   notes?: string | null;
   created_at?: string;

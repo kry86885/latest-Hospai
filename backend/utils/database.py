@@ -1,5 +1,6 @@
 ﻿import os
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 from dotenv import load_dotenv
@@ -1138,6 +1139,8 @@ def ensure_hospai_module_tables(conn):
         cursor.execute("ALTER TABLE appointments ADD COLUMN reminder_sent_at TIMESTAMP")
     if "no_show_marked" not in appointment_columns:
         cursor.execute("ALTER TABLE appointments ADD COLUMN no_show_marked INTEGER DEFAULT 0")
+    if "consultation_fee" not in appointment_columns:
+        cursor.execute("ALTER TABLE appointments ADD COLUMN consultation_fee REAL DEFAULT 0")
 
     cursor.execute(
         f"""
@@ -1149,12 +1152,20 @@ def ensure_hospai_module_tables(conn):
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
             slot_capacity INTEGER DEFAULT 12,
+            consultation_fee REAL DEFAULT 0,
+            review_fee REAL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'available' CHECK(status IN ('available', 'full', 'leave')),
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'doctor_schedules'")
+    doctor_schedule_columns = {row[0] for row in cursor.fetchall()}
+    if "consultation_fee" not in doctor_schedule_columns:
+        cursor.execute("ALTER TABLE doctor_schedules ADD COLUMN consultation_fee REAL DEFAULT 0")
+    if "review_fee" not in doctor_schedule_columns:
+        cursor.execute("ALTER TABLE doctor_schedules ADD COLUMN review_fee REAL DEFAULT 0")
 
     cursor.execute(
         f"""
@@ -2255,6 +2266,49 @@ def search_employees(query, hospital_id=None):
         return cursor.fetchall()
 
 
+def _coerce_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _resolve_doctor_fee(conn, doctor_name, appointment_kind, appointment_date):
+    if not doctor_name:
+        return None
+    appointment_day = str(appointment_date).split("T")[0].split(" ")[0]
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT consultation_fee, review_fee
+        FROM doctor_schedules
+        WHERE doctor_name = ? AND schedule_date = DATE(?)
+        ORDER BY schedule_date DESC, created_at DESC
+        LIMIT 1
+        """,
+        (doctor_name, appointment_day),
+    )
+    direct_match = cursor.fetchone()
+    if direct_match:
+        fee_value = direct_match["review_fee"] if str(appointment_kind).lower() in {"follow_up", "review"} else direct_match["consultation_fee"]
+        return _coerce_float(fee_value)
+    cursor.execute(
+        """
+        SELECT consultation_fee, review_fee
+        FROM doctor_schedules
+        WHERE doctor_name = ?
+        ORDER BY schedule_date DESC, created_at DESC
+        LIMIT 1
+        """,
+        (doctor_name,),
+    )
+    fallback = cursor.fetchone()
+    if not fallback:
+        return None
+    fee_value = fallback["review_fee"] if str(appointment_kind).lower() in {"follow_up", "review"} else fallback["consultation_fee"]
+    return _coerce_float(fee_value)
+
+
 def create_appointment(data):
     appointment_date = data["appointment_date"]
     appointment_day = str(appointment_date).split("T")[0].split(" ")[0]
@@ -2265,13 +2319,24 @@ def create_appointment(data):
             (appointment_day,),
         )
         token_no = int((cursor.fetchone() or {"value": 0})["value"] or 0) + 1
+        appointment_kind = str(data.get("appointment_kind") or "new").strip().lower()
+        if appointment_kind in {"follow_up", "review"}:
+            appointment_kind = "follow_up" if appointment_kind == "follow_up" else "follow_up"
+        else:
+            appointment_kind = "new"
+        resolved_fee = data.get("consultation_fee")
+        if resolved_fee in (None, "", 0):
+            resolved_fee = _resolve_doctor_fee(conn, data.get("doctor_name"), appointment_kind, appointment_date)
+        if resolved_fee in (None, ""):
+            resolved_fee = 0.0
+        resolved_fee = _coerce_float(resolved_fee)
         cursor.execute(
             """
             INSERT INTO appointments (
                 patient_id, patient_name, visit_type, department, doctor_name,
                 appointment_date, token_no, status, notes, appointment_kind, follow_up_for,
-                reminder_sent_at, no_show_marked
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                reminder_sent_at, no_show_marked, consultation_fee
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.get("patient_id"),
@@ -2283,10 +2348,11 @@ def create_appointment(data):
                 token_no,
                 data.get("status", "scheduled"),
                 data.get("notes"),
-                data.get("appointment_kind", "new"),
+                appointment_kind,
                 data.get("follow_up_for"),
                 data.get("reminder_sent_at"),
                 1 if data.get("no_show_marked") else 0,
+                resolved_fee,
             ),
         )
         appointment_id = cursor.lastrowid
@@ -2355,7 +2421,8 @@ def update_appointment(appointment_id, data):
                 appointment_kind = ?,
                 follow_up_for = ?,
                 reminder_sent_at = ?,
-                no_show_marked = ?
+                no_show_marked = ?,
+                consultation_fee = ?
             WHERE id = ?
             """,
             (
@@ -2371,6 +2438,7 @@ def update_appointment(appointment_id, data):
                 data.get("follow_up_for", existing["follow_up_for"]),
                 data.get("reminder_sent_at", existing["reminder_sent_at"]),
                 1 if data.get("no_show_marked", existing["no_show_marked"]) else 0,
+                _coerce_float(data.get("consultation_fee", existing["consultation_fee"])),
                 appointment_id,
             ),
         )
@@ -2378,30 +2446,96 @@ def update_appointment(appointment_id, data):
         return cursor.rowcount > 0
 
 
+def _expand_schedule_dates(raw_schedule_date):
+    if raw_schedule_date is None:
+        raise ValueError("schedule_date is required")
+    if isinstance(raw_schedule_date, (list, tuple)):
+        raw_values = [str(item).strip() for item in raw_schedule_date if str(item).strip()]
+    else:
+        raw_text = str(raw_schedule_date).strip()
+        if not raw_text:
+            raise ValueError("schedule_date is required")
+        raw_values = [item.strip() for item in re.split(r"[\s,]+", raw_text) if item.strip()]
+    if not raw_values:
+        raise ValueError("schedule_date is required")
+    anchor_date = current_ist_datetime().date()
+    parsed_dates = []
+    day_map = {
+        "mon": 0, "monday": 0,
+        "tue": 1, "tuesday": 1,
+        "wed": 2, "wednesday": 2,
+        "thu": 3, "thursday": 3,
+        "fri": 4, "friday": 4,
+        "sat": 5, "saturday": 5,
+        "sun": 6, "sunday": 6,
+    }
+    for token in raw_values:
+        lowered = token.lower()
+        if lowered in {"daily", "everyday", "every_day"}:
+            parsed_dates.extend(anchor_date + timedelta(days=offset) for offset in range(7))
+            continue
+        if lowered in day_map:
+            weekday = day_map[lowered]
+            next_date = anchor_date
+            while next_date.weekday() != weekday:
+                next_date += timedelta(days=1)
+            parsed_dates.append(next_date)
+            continue
+        try:
+            if len(token) == 10 and token[4] == "-" and token[7] == "-":
+                parsed_date = datetime.strptime(token, "%Y-%m-%d").date()
+            else:
+                parsed_date = datetime.strptime(token, "%d-%m-%Y").date()
+            parsed_dates.append(parsed_date)
+        except ValueError as error:
+            raise ValueError(f"Invalid schedule date: {token}") from error
+    unique_dates = []
+    seen = set()
+    for parsed_date in parsed_dates:
+        key = parsed_date.isoformat()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_dates.append(parsed_date)
+    if not unique_dates:
+        raise ValueError("schedule_date is required")
+    return unique_dates
+
+
 def create_doctor_schedule(data):
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO doctor_schedules (
-                doctor_name, department, schedule_date, start_time, end_time,
-                slot_capacity, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data["doctor_name"],
-                data.get("department"),
-                data["schedule_date"],
-                data["start_time"],
-                data["end_time"],
-                int(data.get("slot_capacity", 12) or 12),
-                data.get("status", "available"),
-                data.get("notes"),
-            ),
-        )
-        schedule_id = cursor.lastrowid
+        schedule_dates = _expand_schedule_dates(data.get("schedule_date"))
+        slot_capacity = int(data.get("slot_capacity") or 12)
+        consultation_fee = _coerce_float(data.get("consultation_fee"))
+        review_fee = _coerce_float(data.get("review_fee"))
+        status = data.get("status", "available")
+        notes = data.get("notes")
+        created_ids = []
+        for schedule_date in schedule_dates:
+            cursor.execute(
+                """
+                INSERT INTO doctor_schedules (
+                    doctor_name, department, schedule_date, start_time, end_time,
+                    slot_capacity, consultation_fee, review_fee, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    data["doctor_name"],
+                    data.get("department"),
+                    schedule_date.isoformat(),
+                    data["start_time"],
+                    data["end_time"],
+                    slot_capacity,
+                    consultation_fee,
+                    review_fee,
+                    status,
+                    notes,
+                ),
+            )
+            created_ids.append(cursor.lastrowid)
         conn.commit()
-        return schedule_id
+        return created_ids[0] if created_ids else None
 
 
 def list_doctor_schedules(schedule_date=None, doctor_name=None):
@@ -2434,7 +2568,7 @@ def update_doctor_schedule(schedule_id, data):
             """
             UPDATE doctor_schedules
             SET doctor_name = ?, department = ?, schedule_date = ?, start_time = ?,
-                end_time = ?, slot_capacity = ?, status = ?, notes = ?
+                end_time = ?, slot_capacity = ?, consultation_fee = ?, review_fee = ?, status = ?, notes = ?
             WHERE id = ?
             """,
             (
@@ -2444,6 +2578,8 @@ def update_doctor_schedule(schedule_id, data):
                 data.get("start_time", existing["start_time"]),
                 data.get("end_time", existing["end_time"]),
                 int(data.get("slot_capacity", existing["slot_capacity"] or 12)),
+                _coerce_float(data.get("consultation_fee", existing["consultation_fee"])),
+                _coerce_float(data.get("review_fee", existing["review_fee"])),
                 data.get("status", existing["status"]),
                 data.get("notes", existing["notes"]),
                 schedule_id,
