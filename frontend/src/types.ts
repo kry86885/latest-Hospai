@@ -87,8 +87,17 @@ export interface HospitalSummary {
   revenue: {
     total: number;
     today_total?: number;
+    weekly_revenue?: number;
+    weekly_total?: number;
     monthly_total?: number;
+    monthly_revenue?: number;
+    yearly_revenue?: number;
+    yearly_total?: number;
     due: number;
+    today_collection?: number;
+    total_collection?: number;
+    pending_payments?: number;
+    paid_payments?: number;
     doctor_payout_ready?: number;
     payment_mode_breakdown: DistributionItem[];
     module_breakdown?: {
@@ -109,6 +118,12 @@ export interface HospitalSummary {
   };
   diagnostics_summary: {
     monthly_income: number;
+  };
+  payment_summary?: {
+    total_collection?: number;
+    pending_payments?: number;
+    paid_payments?: number;
+    today_collection?: number;
   };
   operations_today?: {
     patient_registration?: OperationStatusSummary;

@@ -5230,6 +5230,27 @@ def get_hospital_dashboard_summary():
 
         cursor.execute(
             """
+            SELECT
+                COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE THEN amount ELSE 0 END), 0) AS today_revenue,
+                COALESCE(SUM(CASE WHEN DATE(created_at)>=CURRENT_DATE - INTERVAL '6 days' THEN amount ELSE 0 END), 0) AS weekly_revenue,
+                COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('month', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS monthly_revenue,
+                COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('year', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS yearly_revenue
+            FROM (
+                SELECT created_at, amount
+                FROM invoice_payments
+                UNION ALL
+                SELECT created_at, paid_amount AS amount
+                FROM diagnostics
+                UNION ALL
+                SELECT sold_at AS created_at, amount
+                FROM pharmacy_sales
+            ) q
+            """
+        )
+        period_revenue_summary = dict(cursor.fetchone() or {})
+
+        cursor.execute(
+            """
             SELECT label, COALESCE(SUM(count), 0) AS count
             FROM (
                 SELECT COALESCE(NULLIF(TRIM(payment_mode), ''), 'cash') AS label,
@@ -5499,11 +5520,26 @@ def get_hospital_dashboard_summary():
         "revenue": {
             "total": revenue_summary.get("monthly_revenue", 0) or 0,
             "today_total": revenue_summary.get("today_revenue", 0) or 0,
+            "weekly_revenue": period_revenue_summary.get("weekly_revenue", 0) or 0,
+            "weekly_total": period_revenue_summary.get("weekly_revenue", 0) or 0,
             "monthly_total": revenue_summary.get("monthly_revenue", 0) or 0,
+            "monthly_revenue": revenue_summary.get("monthly_revenue", 0) or 0,
+            "yearly_revenue": period_revenue_summary.get("yearly_revenue", 0) or 0,
+            "yearly_total": period_revenue_summary.get("yearly_revenue", 0) or 0,
             "due": revenue_summary.get("due_collection", 0) or 0,
+            "today_collection": period_revenue_summary.get("today_revenue", 0) or 0,
+            "total_collection": period_revenue_summary.get("monthly_revenue", 0) or 0,
+            "pending_payments": revenue_summary.get("due_collection", 0) or 0,
+            "paid_payments": period_revenue_summary.get("monthly_revenue", 0) or 0,
             "doctor_payout_ready": doctor_payout_ready,
             "payment_mode_breakdown": payment_mode_breakdown,
             "module_breakdown": revenue_module_breakdown,
+        },
+        "payment_summary": {
+            "total_collection": period_revenue_summary.get("monthly_revenue", 0) or 0,
+            "pending_payments": revenue_summary.get("due_collection", 0) or 0,
+            "paid_payments": period_revenue_summary.get("monthly_revenue", 0) or 0,
+            "today_collection": period_revenue_summary.get("today_revenue", 0) or 0,
         },
         "pharmacy_summary": {"monthly_sales": pharmacy_sales},
         "diagnostics_summary": {"monthly_income": diagnostics_income},

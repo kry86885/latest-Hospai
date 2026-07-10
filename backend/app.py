@@ -1749,20 +1749,106 @@ def share_view(share_token):
     return response
 
 
+def _build_dashboard_export_payload():
+    summary = get_hospital_dashboard_summary()
+    revenue = summary.get("revenue") or {}
+    payment_summary = summary.get("payment_summary") or {}
+    return {
+        "generated_at": current_ist_datetime().strftime("%Y-%m-%d %H:%M:%S"),
+        "revenue": {
+            "today": revenue.get("today_total", 0) or 0,
+            "weekly": revenue.get("weekly_revenue", revenue.get("weekly_total", 0)) or 0,
+            "monthly": revenue.get("monthly_total", 0) or 0,
+            "yearly": revenue.get("yearly_total", 0) or 0,
+        },
+        "payment_summary": {
+            "total_collection": payment_summary.get("total_collection", revenue.get("total_collection", 0)) or 0,
+            "pending_payments": payment_summary.get("pending_payments", revenue.get("pending_payments", 0)) or 0,
+            "paid_payments": payment_summary.get("paid_payments", revenue.get("paid_payments", 0)) or 0,
+            "today_collection": payment_summary.get("today_collection", revenue.get("today_collection", 0)) or 0,
+        },
+        "operations_today": summary.get("operations_today") or {},
+        "ip_op_counts": summary.get("ip_op_counts") or {},
+    }
+
+
 @app.get("/api/dashboard/export/pdf")
 @require_session
 def dashboard_export_pdf():
-    pdf_bytes = generate_executive_dashboard_pdf(hospital_id=current_hospital_id(), hostname=(request.host or "localhost:5001"))
-    response = send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name="executive-dashboard.pdf",
-    )
-    response.headers["Content-Disposition"] = 'attachment; filename="executive-dashboard.pdf"'
-    response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Content-Length, Content-Type"
-    response.headers["Cache-Control"] = "no-store, max-age=0"
-    return response
+    try:
+        pdf_bytes = generate_executive_dashboard_pdf(hospital_id=current_hospital_id(), hostname=(request.host or "localhost:5001"))
+        response = send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="executive-dashboard.pdf",
+        )
+        response.headers["Content-Disposition"] = 'attachment; filename="executive-dashboard.pdf"'
+        response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Content-Length, Content-Type"
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
+    except Exception as exc:
+        return jsonify({"error": "Unable to generate dashboard PDF.", "message": str(exc)}), 500
+
+
+@app.get("/api/dashboard/export/csv")
+@require_session
+def dashboard_export_csv():
+    try:
+        payload = _build_dashboard_export_payload()
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["metric", "value"])
+        writer.writerow(["today_revenue", payload["revenue"]["today"]])
+        writer.writerow(["weekly_revenue", payload["revenue"]["weekly"]])
+        writer.writerow(["monthly_revenue", payload["revenue"]["monthly"]])
+        writer.writerow(["yearly_revenue", payload["revenue"]["yearly"]])
+        writer.writerow(["total_collection", payload["payment_summary"]["total_collection"]])
+        writer.writerow(["pending_payments", payload["payment_summary"]["pending_payments"]])
+        writer.writerow(["paid_payments", payload["payment_summary"]["paid_payments"]])
+        writer.writerow(["today_collection", payload["payment_summary"]["today_collection"]])
+        csv_bytes = buffer.getvalue().encode("utf-8")
+        return send_file(
+            io.BytesIO(csv_bytes),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="executive-dashboard.csv",
+        )
+    except Exception as exc:
+        return jsonify({"error": "Unable to generate dashboard CSV.", "message": str(exc)}), 500
+
+
+@app.get("/api/dashboard/export/excel")
+@require_session
+def dashboard_export_excel():
+    try:
+        from openpyxl import Workbook
+
+        payload = _build_dashboard_export_payload()
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Dashboard"
+        sheet.append(["metric", "value"])
+        sheet.append(["today_revenue", payload["revenue"]["today"]])
+        sheet.append(["weekly_revenue", payload["revenue"]["weekly"]])
+        sheet.append(["monthly_revenue", payload["revenue"]["monthly"]])
+        sheet.append(["yearly_revenue", payload["revenue"]["yearly"]])
+        sheet.append(["total_collection", payload["payment_summary"]["total_collection"]])
+        sheet.append(["pending_payments", payload["payment_summary"]["pending_payments"]])
+        sheet.append(["paid_payments", payload["payment_summary"]["paid_payments"]])
+        sheet.append(["today_collection", payload["payment_summary"]["today_collection"]])
+
+        output = io.BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="executive-dashboard.xlsx",
+        )
+    except Exception as exc:
+        return jsonify({"error": "Unable to generate dashboard Excel export.", "message": str(exc)}), 500
 
 
 @app.get("/api/dashboard/print/pdf")

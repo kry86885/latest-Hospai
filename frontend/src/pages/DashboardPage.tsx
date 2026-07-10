@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Modal } from "../components/ui";
 import { API_BASE } from "../lib/constants";
 import { getAuthHeaders, getHospitalCode } from "../lib/api";
-import { downloadExportBlob, filenameFromContentDisposition, shareOrDownloadExport } from "../lib/exportShare";
+import { downloadExportBlob, filenameFromContentDisposition } from "../lib/exportShare";
 import type { DashboardAnalytics, DistributionItem, HospitalSummary, Patient, Stats, User } from "../types";
 import { PRINT_BRAND_HEADER_DATA_URI } from "../lib/printBrand";
 import { printViaIframe } from "../lib/printViaIframe";
@@ -220,7 +220,7 @@ export default function DashboardPage({
   onLogout,
   onRefreshDashboard,
 }: Props) {
-  const [exportStatus, setExportStatus] = useState<"" | "print" | "export">("");
+  const [exportStatus, setExportStatus] = useState<"" | "print" | "pdf" | "excel" | "csv">("");
   const todayIso = toIsoDate(new Date());
   const [dashboardDate, setDashboardDate] = useState(todayIso);
   const [pendingDashboardDate, setPendingDashboardDate] = useState(todayIso);
@@ -300,28 +300,44 @@ export default function DashboardPage({
 
   const go = (page: string) => onNavigate(page);
 
-  const fetchDashboardPdf = async () => {
-    const response = await fetch(`${API_BASE}/api/dashboard/export/pdf`, {
+  const fetchDashboardExport = async (kind: "pdf" | "excel" | "csv") => {
+    const response = await fetch(`${API_BASE}/api/dashboard/export/${kind}`, {
       method: "GET",
       headers: { "X-Hospital-Code": getHospitalCode(), ...getAuthHeaders() },
       credentials: "include",
     });
 
     if (!response.ok) {
-      let message = "Unable to generate the dashboard PDF.";
+      let message = `Unable to generate the dashboard ${kind.toUpperCase()}.`;
       try {
         const payload = await response.json();
         message = payload.error || payload.message || message;
       } catch {
-        // The PDF endpoint normally returns binary data. JSON parsing is only for API errors.
+        // The export endpoint normally returns binary data. JSON parsing is only for API errors.
       }
       throw new Error(message);
     }
 
     const blob = await response.blob();
-    if (!blob.size) throw new Error("The dashboard PDF was generated empty.");
-    const filename = filenameFromContentDisposition(response.headers.get("Content-Disposition"), "executive-dashboard.pdf");
+    if (!blob.size) throw new Error(`The dashboard ${kind.toUpperCase()} export was generated empty.`);
+    const extension = kind === "pdf" ? "pdf" : kind === "excel" ? "xlsx" : "csv";
+    const filename = kind === "pdf"
+      ? filenameFromContentDisposition(response.headers.get("Content-Disposition"), `executive-dashboard.${extension}`)
+      : `executive-dashboard.${extension}`;
     return { blob, filename };
+  };
+
+  const handleDashboardExport = async (kind: "pdf" | "excel" | "csv") => {
+    if (exportStatus) return;
+    setExportStatus(kind);
+    try {
+      const { blob, filename } = await fetchDashboardExport(kind);
+      downloadExportBlob(blob, filename);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : `Unable to export the dashboard ${kind.toUpperCase()}.`);
+    } finally {
+      setExportStatus("");
+    }
   };
 
   const handlePrintDashboardPdf = async () => {
@@ -364,27 +380,6 @@ export default function DashboardPage({
     }
   };
 
-  const handleShareDashboardPdf = async () => {
-    if (exportStatus) return;
-    setExportStatus("export");
-    try {
-      const { blob, filename } = await fetchDashboardPdf();
-      const result = await shareOrDownloadExport({
-        blob,
-        filename,
-        title: "VERARA Executive Dashboard",
-        text: "VERARA executive dashboard export",
-      });
-      if (result === "downloaded") {
-        window.alert("Native file sharing is not available for this browser/device. The dashboard PDF was downloaded, and an email fallback was opened where supported.");
-      }
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to export/share the dashboard PDF.");
-    } finally {
-      setExportStatus("");
-    }
-  };
-
   const patientsForDashboardDate = useMemo(
     () => patients.filter((patient) => patientCreatedIso(patient) === dashboardDate),
     [patients, dashboardDate]
@@ -394,9 +389,15 @@ export default function DashboardPage({
   // Derived values
   const dailyOp = hospitalSummary?.ip_op_counts?.daily_op || 0;
   const dailyIp = hospitalSummary?.ip_op_counts?.daily_ip || 0;
-  const monthlyRevenue = hospitalSummary?.revenue?.monthly_total ?? hospitalSummary?.revenue?.total ?? 0;
-  const todayRevenue = hospitalSummary?.revenue?.today_total ?? 0;
-  const dueRevenue = hospitalSummary?.revenue?.due || 0;
+  const weeklyRevenue = Number(hospitalSummary?.revenue?.weekly_total ?? hospitalSummary?.revenue?.weekly_revenue ?? 0);
+  const monthlyRevenue = Number(hospitalSummary?.revenue?.monthly_total ?? hospitalSummary?.revenue?.monthly_revenue ?? hospitalSummary?.revenue?.total ?? 0);
+  const yearlyRevenue = Number(hospitalSummary?.revenue?.yearly_total ?? hospitalSummary?.revenue?.yearly_revenue ?? 0);
+  const todayRevenue = Number(hospitalSummary?.revenue?.today_total ?? hospitalSummary?.revenue?.today_collection ?? 0);
+  const dueRevenue = Number(hospitalSummary?.revenue?.due ?? hospitalSummary?.payment_summary?.pending_payments ?? 0);
+  const totalCollection = Number(hospitalSummary?.payment_summary?.total_collection ?? hospitalSummary?.revenue?.total_collection ?? monthlyRevenue ?? 0);
+  const pendingPayments = Number(hospitalSummary?.payment_summary?.pending_payments ?? hospitalSummary?.revenue?.pending_payments ?? dueRevenue ?? 0);
+  const paidPayments = Number(hospitalSummary?.payment_summary?.paid_payments ?? hospitalSummary?.revenue?.paid_payments ?? monthlyRevenue ?? 0);
+  const todayCollection = Number(hospitalSummary?.payment_summary?.today_collection ?? hospitalSummary?.revenue?.today_collection ?? todayRevenue ?? 0);
   const pharmSales = hospitalSummary?.pharmacy_summary?.monthly_sales || 0;
   const diagIncome = hospitalSummary?.diagnostics_summary?.monthly_income || 0;
   const doctorPayoutReady = hospitalSummary?.revenue?.doctor_payout_ready || 0;
@@ -646,9 +647,17 @@ export default function DashboardPage({
             <span className="hosp-dashboard-action-icon">🖨️</span>
             <span>{exportStatus === "print" ? "Preparing..." : "Print"}</span>
           </button>
-          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleShareDashboardPdf()} disabled={exportStatus !== ""}>
-            <span className="hosp-dashboard-action-icon">↗️</span>
-            <span>{exportStatus === "export" ? "Preparing..." : "Export / Share"}</span>
+          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("pdf")} disabled={exportStatus !== ""}>
+            <span className="hosp-dashboard-action-icon">📄</span>
+            <span>{exportStatus === "pdf" ? "Preparing..." : "PDF"}</span>
+          </button>
+          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("excel")} disabled={exportStatus !== ""}>
+            <span className="hosp-dashboard-action-icon">📊</span>
+            <span>{exportStatus === "excel" ? "Preparing..." : "Excel"}</span>
+          </button>
+          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("csv")} disabled={exportStatus !== ""}>
+            <span className="hosp-dashboard-action-icon">📁</span>
+            <span>{exportStatus === "csv" ? "Preparing..." : "CSV"}</span>
           </button>
           <div className="hosp-dashboard-profile-wrap" ref={dashboardProfileRef}>
             <button type="button" className="hosp-dashboard-user" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} aria-haspopup="menu">
@@ -786,7 +795,7 @@ export default function DashboardPage({
         {/* Revenue Snapshot */}
         <Card className="panel hosp-section-card">
           <CardHeader style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle>Revenue Snapshot (Today)</CardTitle>
+            <CardTitle>Revenue Snapshot</CardTitle>
             <button className="hosp-view-all" onClick={() => go("billing-module-collections")}>View All</button>
           </CardHeader>
           <CardContent>
@@ -820,22 +829,27 @@ export default function DashboardPage({
         {/* Payment Summary */}
         <Card className="panel hosp-section-card">
           <CardHeader style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle>Payment Summary (Today)</CardTitle>
+            <CardTitle>Payment Summary</CardTitle>
             <button className="hosp-view-all" onClick={() => go("billing-record-payment")}>View Details</button>
           </CardHeader>
           <CardContent>
             <div className="hosp-pay-list">
-              {paymentSummaryRows.map((row) => (
+              {[
+                { label: "Total Collection", value: totalCollection },
+                { label: "Pending Payments", value: pendingPayments },
+                { label: "Paid Payments", value: paidPayments },
+                { label: "Today's Collection", value: todayCollection },
+              ].map((row) => (
                 <button key={row.label} type="button" className="hosp-pay-row hosp-table-click" onClick={() => go("billing-record-payment")}>
                   <span className="hosp-pay-icon">💳</span>
                   <span className="hosp-pay-label">{row.label}</span>
-                  <span className="hosp-pay-value">{formatCurrencyShort(row.count)}</span>
+                  <span className="hosp-pay-value">{formatCurrencyShort(row.value)}</span>
                 </button>
               ))}
             </div>
             <div className="hosp-pay-total-row">
-              <span>Total Collected</span>
-              <span style={{ color: "#0891b2", fontWeight: 700 }}>{formatCurrencyShort(paymentSummaryTotal)}</span>
+              <span>Live Summary</span>
+              <span style={{ color: "#0891b2", fontWeight: 700 }}>{formatCurrencyShort(totalCollection)}</span>
             </div>
           </CardContent>
         </Card>
