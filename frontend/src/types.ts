@@ -95,17 +95,12 @@ export interface HospitalSummary {
       today?: {
         op_billing?: number;
         lab_diagnostics?: number;
-        pharmacy?: number;
       };
       monthly?: {
         op_billing?: number;
         lab_diagnostics?: number;
-        pharmacy?: number;
       };
     };
-  };
-  pharmacy_summary: {
-    monthly_sales: number;
   };
   diagnostics_summary: {
     monthly_income: number;
@@ -211,18 +206,6 @@ export interface ObservationNote {
   created_at?: string;
 }
 
-export interface PharmacySale {
-  id: number;
-  invoice_id?: string | number | null;
-  patient_id?: string | null;
-  prescription_ref?: string | null;
-  medicine_name: string;
-  quantity?: number;
-  unit_price?: number;
-  amount?: number;
-  payment_mode?: string | null;
-  sold_at?: string;
-}
 
 export interface AuditLog {
   id: number;
@@ -303,9 +286,6 @@ export interface ReportsOverview {
       due: number;
       payment_mode_breakdown: DistributionItem[];
     };
-    pharmacy_summary: {
-      monthly_sales: number;
-    };
     diagnostics_summary: {
       monthly_income: number;
     };
@@ -319,12 +299,6 @@ export interface ReportsOverview {
     total_refunded: number;
     payment_mode_breakdown: DistributionItem[];
     collections_by_module: DistributionItem[];
-  };
-  pharmacy_summary: {
-    low_stock_count: number;
-    out_of_stock_count: number;
-    damaged_stock_count: number;
-    sales_total: number;
   };
   lab_summary: {
     total_amount: number;
@@ -429,7 +403,7 @@ export interface NavItem {
   label: string;
   permission?: string;
   deniedHint?: string;
-  group?: "overview" | "registration" | "operations" | "finance" | "admin";
+  group?: "overview" | "registration" | "operations" | "finance" | "admin" | "op-management" | "billing";
 }
 
 export interface Employee {

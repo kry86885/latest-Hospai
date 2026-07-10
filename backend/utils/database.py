@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
@@ -2328,6 +2328,46 @@ def list_appointments(appointment_date=None, status=None, visit_type=None, docto
             LEFT JOIN patients p ON p.patient_id = a.patient_id
             {where_clause}
             ORDER BY a.appointment_date ASC, a.token_no ASC
+            """,
+            tuple(params),
+        )
+        return cursor.fetchall()
+
+
+def list_doctors_history(hospital_id, doctor_name=None, from_date=None, to_date=None, department=None):
+    scoped_hospital_id = hospital_id or resolve_hospital_id()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        clauses = ["p.hospital_id = ?"]
+        params = [scoped_hospital_id]
+        if doctor_name and doctor_name != "All":
+            clauses.append("a.doctor_name = ?")
+            params.append(doctor_name)
+        if from_date:
+            clauses.append("DATE(a.appointment_date) >= DATE(?)")
+            params.append(from_date)
+        if to_date:
+            clauses.append("DATE(a.appointment_date) <= DATE(?)")
+            params.append(to_date)
+        if department and department != "All":
+            clauses.append("a.department = ?")
+            params.append(department)
+        
+        where_clause = f" WHERE {' AND '.join(clauses)}"
+        
+        cursor.execute(
+            f"""
+            SELECT
+                a.*,
+                p.age AS age,
+                p.gender AS gender,
+                p.phone AS mobile,
+                p.phone AS phone,
+                TRIM(COALESCE(p.name, '') || ' ' || COALESCE(p.middle_name, '') || ' ' || COALESCE(p.last_name, '')) AS registered_patient_name
+            FROM appointments a
+            LEFT JOIN patients p ON p.patient_id = a.patient_id
+            {where_clause}
+            ORDER BY a.appointment_date DESC, a.token_no DESC
             """,
             tuple(params),
         )

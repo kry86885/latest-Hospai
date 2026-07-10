@@ -212,7 +212,7 @@ def test_extended_patient_management_flow(app_client):
     assert op_summary_after_no_show["no_shows"] >= 1
 
 
-def test_billing_pharmacy_lab_summary_and_dashboard(app_client):
+def test_billing_lab_summary_and_dashboard(app_client):
     _owner_login(app_client)
     suffix = uuid.uuid4().hex[:6]
     created = app_client.post("/api/patients", json=_patient_payload(700002))
@@ -289,57 +289,6 @@ def test_billing_pharmacy_lab_summary_and_dashboard(app_client):
     update_claim = app_client.put(f"/api/billing/claims/{claim_id}", json={"claim_status": "approved", "approved_amount": 650})
     assert update_claim.status_code == 200
 
-    item = app_client.post(
-        "/api/pharmacy/inventory",
-        json={"medicine_name": "Amoxicillin", "quantity": 20, "reorder_level": 10, "unit_price": 50},
-    )
-    assert item.status_code == 200
-
-    supplier = app_client.post(
-        "/api/pharmacy/suppliers",
-        json={"supplier_name": "MediSupply", "contact_person": "Asha", "phone": "5551112222"},
-    )
-    assert supplier.status_code == 200
-    supplier_id = supplier.get_json()["supplier_id"]
-
-    purchase = app_client.post(
-        "/api/pharmacy/purchases",
-        json={
-            "supplier_id": supplier_id,
-            "medicine_name": "Amoxicillin",
-            "quantity": 5,
-            "unit_cost": 30,
-            "status": "received",
-            "received_date": "2026-03-03",
-        },
-    )
-    assert purchase.status_code == 200
-    purchase_rows = app_client.get("/api/pharmacy/purchases").get_json()["purchases"]
-    assert any(item["medicine_name"] == "Amoxicillin" for item in purchase_rows)
-
-    sale = app_client.post(
-        "/api/pharmacy/sales",
-        json={
-            "patient_id": patient_id,
-            "prescription_ref": "RX-100",
-            "medicine_name": "Amoxicillin",
-            "quantity": 2,
-            "unit_price": 50,
-        },
-    )
-    assert sale.status_code == 200
-    sales_list = app_client.get("/api/pharmacy/sales").get_json()["sales"]
-    assert len(sales_list) == 1
-    assert sales_list[0]["amount"] == 100
-    assert sales_list[0]["prescription_ref"] == "RX-100"
-    pharmacy_summary = app_client.get("/api/pharmacy/summary").get_json()
-    assert pharmacy_summary["sales_total"] == 100
-
-    inventory_rows = app_client.get("/api/pharmacy/inventory").get_json()["items"]
-    assert len(inventory_rows) == 1
-    assert inventory_rows[0]["quantity"] == 23
-    delete_inventory = app_client.delete(f"/api/pharmacy/inventory/{inventory_rows[0]['id']}")
-    assert delete_inventory.status_code == 200
 
     vendor = app_client.post("/api/lab/vendors", json={"vendor_name": "MedLab", "phone": "5558887777"})
     assert vendor.status_code == 200
@@ -615,3 +564,54 @@ def test_hr_and_audit_permissions(app_client):
     reports_pdf = app_client.get("/api/reports/export/pdf")
     assert reports_pdf.status_code == 200
     assert "application/pdf" in reports_pdf.headers["Content-Type"]
+
+
+def test_doctors_history_module(app_client):
+    _owner_login(app_client)
+    
+    # 1. Create a patient
+    patient_res = app_client.post("/api/patients", json=_patient_payload(800001))
+    assert patient_res.status_code == 200
+    patient_id = patient_res.get_json()["patient_id"]
+    
+    # 2. Create an appointment with a specific doctor and department
+    app_client.post(
+        "/api/appointments",
+        json={
+            "patient_id": patient_id,
+            "patient_name": "Test Doctors History Patient",
+            "visit_type": "OP",
+            "department": "Cardiology",
+            "doctor_name": "Dr. Arjun Reddy",
+            "appointment_date": "2025-05-15T10:30:00",
+            "consultation_fee": 500,
+            "status": "completed",
+            "notes": "Chest pain and breathlessness",
+            "appointment_kind": "follow_up"
+        }
+    )
+    
+    # 3. Query /api/doctors-history endpoint
+    history_res = app_client.get(
+        "/api/doctors-history?doctor_name=Dr. Arjun Reddy&from_date=2025-05-01&to_date=2025-05-31&department=Cardiology"
+    )
+    assert history_res.status_code == 200
+    data = history_res.get_json()
+    assert "history" in data
+    history_list = data["history"]
+    assert len(history_list) >= 1
+    
+    # Verify the matching record details
+    match = [h for h in history_list if h["patient_id"] == patient_id]
+    assert len(match) == 1
+    record = match[0]
+    assert record["doctor_name"] == "Dr. Arjun Reddy"
+    assert record["department"] == "Cardiology"
+    assert record["notes"] == "Chest pain and breathlessness"
+    assert record["appointment_kind"] == "follow_up"
+    assert record["status"] == "completed"
+
+    # Test reset/empty query
+    empty_query_res = app_client.get("/api/doctors-history")
+    assert empty_query_res.status_code == 200
+    assert len(empty_query_res.get_json()["history"]) >= 1

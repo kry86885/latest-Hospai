@@ -88,45 +88,8 @@ def test_reports_overview_and_exports_cover_new_modules(auth_client, create_pati
     assert word_export.data
 
 
-def test_ops_and_pharmacy_workflows_cover_reminders_procurement_ot_and_accounts(auth_client, create_patient):
+def test_ops_workflows_cover_reminders_ot_and_accounts(auth_client, create_patient):
     patient_id = create_patient({"name": "Ops", "last_name": "Coverage"})
-
-    inventory = auth_client.post(
-        "/api/pharmacy/inventory",
-        json={"medicine_name": "Cefixime", "quantity": 10, "reorder_level": 5, "unit_price": 18},
-    )
-    assert inventory.status_code == 200
-
-    supplier = auth_client.post(
-        "/api/pharmacy/suppliers",
-        json={"supplier_name": "Acme Pharma", "contact_person": "Ravi", "phone": "5551112222"},
-    )
-    assert supplier.status_code == 200
-    supplier_id = supplier.get_json()["supplier_id"]
-
-    purchase = auth_client.post(
-        "/api/pharmacy/purchases",
-        json={
-            "supplier_id": supplier_id,
-            "medicine_name": "Cefixime",
-            "quantity": 15,
-            "unit_cost": 12,
-            "status": "ordered",
-        },
-    )
-    assert purchase.status_code == 200
-    purchase_id = purchase.get_json()["purchase_id"]
-
-    purchase_update = auth_client.put(
-        f"/api/pharmacy/purchases/{purchase_id}",
-        json={"status": "received", "received_date": "2026-03-04"},
-    )
-    assert purchase_update.status_code == 200
-
-    inventory_rows = auth_client.get("/api/pharmacy/inventory").get_json()["items"]
-    cefixime = next((item for item in inventory_rows if item["medicine_name"] == "Cefixime"), None)
-    assert cefixime is not None
-    assert cefixime["quantity"] >= 25
 
     appointment = auth_client.post(
         "/api/appointments",

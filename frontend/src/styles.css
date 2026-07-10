@@ -5607,3 +5607,140 @@ main {
     min-width: 0;
   }
 }
+
+/* Doctors History Module */
+.doctors-history-filters-form {
+  width: 100%;
+}
+
+.filter-group-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filter-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.filter-actions-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.filter-reset-btn {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.filter-reset-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.filter-show-btn {
+  background-color: #2563eb;
+  color: white;
+}
+
+.filter-show-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.module-table-doctors-history .table-head,
+.module-table-doctors-history .table-row {
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 2fr 1fr 0.8fr;
+  align-items: center;
+}
+
+.block-date {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.block-time {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.chief-complaint-cell {
+  color: #4b5563;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
+.patient-id-chip {
+  color: #3b82f6;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  width: fit-content;
+}
+
+.status-pill.badge-completed {
+  background-color: #ecfdf5;
+  color: #10b981;
+  border: 1px solid #a7f3d0;
+}
+
+.status-pill.badge-cancelled {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+}
+
+.status-pill.badge-pending {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #bfdbfe;
+}
+
+.doctors-history-pagination {
+  margin-top: 16px;
+  border-radius: 8px;
+}
+
+@media (max-width: 1024px) {
+  .filter-group-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter-actions-wrapper {
+    grid-column: span 2;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .filter-group-grid {
+    grid-template-columns: 1fr;
+  }
+  .filter-actions-wrapper {
+    grid-column: span 1;
+    justify-content: space-between;
+  }
+  .filter-actions-wrapper button {
+    flex: 1;
+  }
+}
+

@@ -77,7 +77,7 @@ def test_signup_cannot_self_assign_admin(app_client):
             "email": "public@example.com",
             "phone": "5551010101",
             "user_type": "admin",
-            "module_access": ["dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "symptom_ai"],
+            "module_access": ["dashboard", "patients", "billing", "lab", "hrms", "symptom_ai"],
             "job_role": "CEO",
             "department": "General",
             "address": "",
@@ -181,7 +181,6 @@ def test_admin_has_full_module_access(app_client):
 
     assert app_client.get("/api/patients").status_code == 200
     assert app_client.get("/api/billing/revenue-summary").status_code == 200
-    assert app_client.get("/api/pharmacy/summary").status_code == 200
     assert app_client.get("/api/lab/summary").status_code == 200
     assert app_client.get("/api/hr/departments").status_code == 200
     assert app_client.get("/api/audit/logs").status_code == 200
@@ -233,7 +232,7 @@ def test_registration_departments_are_hospital_scoped_via_api(app_client):
             "role": "employee",
             "access_role": "owner",
             "user_type": "admin",
-            "module_access": ["dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai"],
+            "module_access": ["dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai"],
             "job_role": "Hospital Admin",
             "full_name": "Dept One Admin",
             "email": "dept.one@example.com",
@@ -253,7 +252,7 @@ def test_registration_departments_are_hospital_scoped_via_api(app_client):
             "role": "employee",
             "access_role": "owner",
             "user_type": "admin",
-            "module_access": ["dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai"],
+            "module_access": ["dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai"],
             "job_role": "Hospital Admin",
             "full_name": "Dept Two Admin",
             "email": "dept.two@example.com",

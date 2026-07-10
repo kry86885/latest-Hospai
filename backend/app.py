@@ -139,6 +139,7 @@ from utils.database import (
     list_account_ledger_entries,
     list_attendance,
     list_appointments,
+    list_doctors_history,
     list_bed_allocations,
     list_certificates,
     list_departments,
@@ -1894,6 +1895,25 @@ def appointments_list():
             )
         }
     )
+
+
+@app.get("/api/doctors-history")
+@require_permissions("patients.read")
+def doctors_history_list():
+    doctor_name = request.args.get("doctor_name")
+    from_date = request.args.get("from_date")
+    to_date = request.args.get("to_date")
+    department = request.args.get("department")
+    hospital_id = current_hospital_id()
+    
+    rows = list_doctors_history(
+        hospital_id=hospital_id,
+        doctor_name=doctor_name,
+        from_date=from_date,
+        to_date=to_date,
+        department=department
+    )
+    return jsonify({"history": rows_to_dicts(rows)})
 
 
 @app.post("/api/appointments")

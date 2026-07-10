@@ -37,6 +37,7 @@ import PlatformAdminPage from "./pages/PlatformAdminPage";
 import RegistrationDeskPage from "./pages/RegistrationDeskPage";
 import PatientWorkflowPage from "./pages/PatientWorkflowPage";
 import PatientJourneyPage from "./pages/PatientJourneyPage";
+import DoctorsHistoryPage from "./pages/DoctorsHistoryPage";
 import { API_BASE, EMPTY_PATIENT_FORM, EMPTY_STATS, NAV_ITEMS } from "./lib/constants";
 import { apiFetch, clearAuthToken, getAuthHeaders, getHospitalCode, reportError, setAuthToken, setHospitalCode } from "./lib/api";
 import { resolvePermissions } from "./lib/format";
@@ -74,6 +75,7 @@ const NAV_ICON_MAP: Record<string, SidebarIconName> = {
   reports: "dashboard",
   employees: "employees",
   settings: "settings",
+  "doctors-history": "appointment",
 };
 
 function SidebarIcon({ name }: { name: SidebarIconName }) {
@@ -958,6 +960,17 @@ function App() {
 
         {page === "readmit" && (
           <ReadmitPage onSelect={handleSelectPatient} setNotice={setNotice} onReadmitComplete={refreshPatientData} ocrLanguage={ocrLanguage} />
+        )}
+
+        {page === "doctors-history" && (
+          <DoctorsHistoryPage
+            setNotice={setNotice}
+            onOpenPatient={(patientId) => {
+              const patient = patients.find((item) => item.patient_id === patientId) || null;
+              handleSelectPatient(patient);
+              navigateToPage("patients");
+            }}
+          />
         )}
 
         {page === "billing-aging" && hasPermission("billing.read") && <BillingAgingPage setNotice={setNotice} />}

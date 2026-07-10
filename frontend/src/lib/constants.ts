@@ -74,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "patient-journey", label: "Patient Journey", group: "op-management", permission: "patients.read", deniedHint: "Requires patient access." },
   { id: "op-desk", label: "Doctor Scheduling", group: "op-management", permission: "patients.read", deniedHint: "Requires patient access." },
   { id: "readmit", label: "Follow-up / Re-visit", group: "op-management", permission: "patients.write", deniedHint: "Requires patient write access." },
+  { id: "doctors-history", label: "Doctors History", group: "op-management", permission: "patients.read", deniedHint: "Requires patient access." },
   { id: "lab", label: "Lab & Diagnostic Billing", group: "billing", permission: "lab.read", deniedHint: "Requires lab access." },
   { id: "billing-record-payment", label: "Payment Collection", group: "billing", permission: "billing.write", deniedHint: "Requires billing write access." },
   { id: "billing-module-collections", label: "Revenue Reports", group: "billing", permission: "billing.read", deniedHint: "Requires billing access." },

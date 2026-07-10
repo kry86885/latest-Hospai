@@ -89,8 +89,6 @@ def clean_database():
         cursor.execute("DELETE FROM certificates")
         cursor.execute("DELETE FROM doctor_schedules")
         cursor.execute("DELETE FROM appointments")
-        cursor.execute("DELETE FROM pharmacy_purchases")
-        cursor.execute("DELETE FROM pharmacy_suppliers")
         cursor.execute("DELETE FROM ot_surgeries")
         cursor.execute("DELETE FROM ot_theatres")
         cursor.execute("DELETE FROM doctor_payouts")
@@ -104,8 +102,6 @@ def clean_database():
         cursor.execute("DELETE FROM patient_movements")
         cursor.execute("DELETE FROM invoice_payments")
         cursor.execute("DELETE FROM invoices")
-        cursor.execute("DELETE FROM pharmacy_sales")
-        cursor.execute("DELETE FROM pharmacy_inventory")
         cursor.execute("DELETE FROM diagnostics")
         cursor.execute("DELETE FROM lab_vendors")
         cursor.execute("DELETE FROM attendance")
@@ -126,7 +122,7 @@ def clean_database():
         cursor.execute("DELETE FROM hospitals WHERE id <> ?", (default_hospital_id,))
         try:
             cursor.execute(
-                "UPDATE users SET access_role='owner', user_type='admin', module_access='[\"dashboard\",\"patients\",\"billing\",\"pharmacy\",\"lab\",\"hrms\",\"ot\",\"accounts\",\"reports\"]' WHERE username='Dr. PRABHU'"
+                "UPDATE users SET access_role='owner', user_type='admin', module_access='[\"dashboard\",\"patients\",\"billing\",\"lab\",\"hrms\",\"ot\",\"accounts\",\"reports\"]' WHERE username='Dr. PRABHU'"
             )
         except Exception:
             pass
