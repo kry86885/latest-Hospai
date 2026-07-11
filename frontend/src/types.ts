@@ -437,9 +437,6 @@ export interface PatientForm {
   nationality: string;
   email?: string;
   emergency_mobile?: string;
-  medical_history?: string;
-  current_medication?: string;
-  blood_group?: string;
 }
 
 export interface NavItem {

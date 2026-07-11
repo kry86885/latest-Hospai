@@ -54,7 +54,7 @@ describe("AddPatientPage", () => {
       await flush();
     });
 
-    expect(container.textContent).toContain("Patient Registration");
+    expect(container.textContent).toContain("PATIENT REGISTRATION");
     expect(container.textContent).toContain("Primary Mobile");
     expect(container.textContent).toContain("Register Patient");
 
