@@ -1,7 +1,14 @@
 import { useState } from "react";
 
 const LOGO_BASE = import.meta.env.BASE_URL || "./";
-const LOGO_PATHS = [`${LOGO_BASE}logo.png?v=hospai-uploaded-logo-20260622`, `${LOGO_BASE}logo.svg?v=hospai-uploaded-logo-20260622`];
+const LOGO_QUERY = "?v=hospai-uploaded-logo-20260622";
+const LOGO_PATHS = [
+  `${LOGO_BASE}logo.png${LOGO_QUERY}`,
+  `${LOGO_BASE}logo.jpg${LOGO_QUERY}`,
+  `${LOGO_BASE}logo.svg${LOGO_QUERY}`,
+  `${LOGO_BASE}logo_square.png${LOGO_QUERY}`,
+  `${LOGO_BASE}logo-icon.svg${LOGO_QUERY}`,
+];
 
 type BrandLogoProps = {
   className?: string;

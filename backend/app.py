@@ -1357,8 +1357,14 @@ def _dashboard_report_logo_path():
         # 3. Frontend public/dist
         os.path.join(project_root, "frontend", "public", "rapha_logo.png"),
         os.path.join(project_root, "frontend", "public", "rapha_logo.jpg"),
+        os.path.join(project_root, "frontend", "public", "logo.png"),
+        os.path.join(project_root, "frontend", "public", "logo.jpg"),
+        os.path.join(project_root, "frontend", "public", "logo_square.png"),
         os.path.join(project_root, "frontend", "dist", "rapha_logo.png"),
         os.path.join(project_root, "frontend", "dist", "rapha_logo.jpg"),
+        os.path.join(project_root, "frontend", "dist", "logo.png"),
+        os.path.join(project_root, "frontend", "dist", "logo.jpg"),
+        os.path.join(project_root, "frontend", "dist", "logo_square.png"),
         # 4. PyInstaller _MEIPASS (flat and in assets/ sub-dir)
         os.path.join(meipass, "assets", "rapha_logo.png") if meipass else "",
         os.path.join(meipass, "assets", "rapha_logo.jpg") if meipass else "",

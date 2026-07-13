@@ -29,7 +29,11 @@ def _frontend_logo_path():
         os.path.join(root, "frontend", "public", "rapha_print_header.jpg"),
         os.path.join(root, "frontend", "dist", "rapha_print_header.jpg"),
         os.path.join(root, "frontend", "public", "logo.png"),
+        os.path.join(root, "frontend", "public", "logo.jpg"),
+        os.path.join(root, "frontend", "public", "logo_square.png"),
         os.path.join(root, "frontend", "dist", "logo.png"),
+        os.path.join(root, "frontend", "dist", "logo.jpg"),
+        os.path.join(root, "frontend", "dist", "logo_square.png"),
     ]
     return next((path for path in candidates if path and os.path.exists(path)), None)
 
