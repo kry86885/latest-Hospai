@@ -73,6 +73,13 @@ describe("LabPage", () => {
     expect(container.querySelector('input[aria-label="Patient name"]')).toBeTruthy();
     expect(container.querySelector('input[aria-label="Paid Amount"]')).toBeTruthy();
     expect(container.querySelector('select[aria-label="Lab category"]')).toBeTruthy();
+    expect(container.textContent).toContain("Total Lab Tests Amount (₹)");
+    expect(container.textContent).toContain("Total Diagnostic Amount (₹)");
+
+    const amountInputs = container.querySelectorAll('input[aria-label="lab rate"]');
+    const quantityInputs = container.querySelectorAll('input[aria-label="lab quantity"]');
+    amountInputs.forEach((input) => expect((input as HTMLInputElement).value).toBe(""));
+    quantityInputs.forEach((input) => expect((input as HTMLInputElement).value).toBe(""));
 
     act(() => {
       root.unmount();

@@ -15,8 +15,8 @@ type ServiceItem = {
   code: string;
   name: string;
   category: string;
-  rate: number;
-  quantity: number;
+  rate: number | "";
+  quantity: number | "";
 };
 
 type DiagnosticRecord = {
@@ -198,8 +198,8 @@ export default function LabPage({ setNotice }: Props) {
       code: activeTab === "lab" ? `LAB${String(target.length + 1).padStart(3, "0")}` : `IMG${String(target.length + 1).padStart(3, "0")}`,
       name: search.trim() || "",
       category: category || subCategory || "",
-      rate: 0,
-      quantity: 1,
+      rate: "",
+      quantity: "",
     };
     if (activeTab === "lab") setLabItems((current) => [...current, nextItem]);
     else setDiagnosticItems((current) => [...current, nextItem]);
@@ -214,7 +214,11 @@ export default function LabPage({ setNotice }: Props) {
         itemIndex === index
           ? {
               ...item,
-              [key]: key === "rate" || key === "quantity" ? Number(value) || 0 : value,
+              [key]: key === "rate" || key === "quantity"
+                ? value === ""
+                  ? ""
+                  : Number(value)
+                : value,
             }
           : item
       )
@@ -229,9 +233,9 @@ export default function LabPage({ setNotice }: Props) {
   const servicePayloads = () => {
     const build = (type: "lab" | "diagnostic", items: ServiceItem[]) =>
       items
-        .filter((item) => item.name.trim() && item.rate > 0 && item.quantity > 0)
+        .filter((item) => item.name.trim() && Number(item.rate || 0) > 0 && Number(item.quantity || 0) > 0)
         .map((item, index) => {
-          const grossAmount = item.rate * item.quantity;
+          const grossAmount = Number(item.rate || 0) * Number(item.quantity || 0);
           const proportion = subtotal > 0 ? grossAmount / subtotal : 0;
           const lineDiscount = Number((discountAmount * proportion).toFixed(2));
           const lineTax = Number((taxAmount * proportion).toFixed(2));
@@ -942,12 +946,12 @@ export default function LabPage({ setNotice }: Props) {
           <Input value={item.category} onChange={(event) => updateItem(type, index, "category", event.target.value)} aria-label={`${type} category`} />
         </td>
         <td>
-          <Input type="number" min={0} value={item.rate} onChange={(event) => updateItem(type, index, "rate", event.target.value)} aria-label={`${type} rate`} />
+          <Input type="number" min={0} value={item.rate} onChange={(event) => updateItem(type, index, "rate", event.target.value)} aria-label={`${type} rate`} placeholder="Enter amount" />
         </td>
         <td>
-          <Input type="number" min={1} value={item.quantity} onChange={(event) => updateItem(type, index, "quantity", event.target.value)} aria-label={`${type} quantity`} />
+          <Input type="number" min={1} value={item.quantity} onChange={(event) => updateItem(type, index, "quantity", event.target.value)} aria-label={`${type} quantity`} placeholder="Qty" />
         </td>
-        <td className="lab-service-amount">{formatAmount(item.rate * item.quantity)}</td>
+        <td className="lab-service-amount">{formatAmount(Number(item.rate || 0) * Number(item.quantity || 0))}</td>
         <td>
           <button className="lab-delete-btn" type="button" onClick={() => removeItem(type, index)} aria-label="Delete row">×</button>
         </td>
@@ -1142,6 +1146,24 @@ export default function LabPage({ setNotice }: Props) {
               <Select value={paymentMode} onChange={(event) => setPaymentMode(event.target.value)} aria-label="Payment Mode">
                 {PAYMENT_MODES.map(mode => <option key={mode}>{mode}</option>)}
               </Select>
+            </div>
+            <div className="lab-field">
+              <label>Total Lab Tests Amount (₹)</label>
+              <Input 
+                type="text"
+                value={formatAmount(labTotal)}
+                aria-label="Total Lab Tests Amount"
+                disabled
+              />
+            </div>
+            <div className="lab-field">
+              <label>Total Diagnostic Amount (₹)</label>
+              <Input 
+                type="text"
+                value={formatAmount(diagnosticTotal)}
+                aria-label="Total Diagnostic Amount"
+                disabled
+              />
             </div>
             <div className="lab-field">
               <label>Paid Amount (₹) *</label>
