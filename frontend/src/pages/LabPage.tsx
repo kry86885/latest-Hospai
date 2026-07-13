@@ -88,7 +88,7 @@ const printField = (label: string, value: unknown) => `
 `;
 
 export default function LabPage({ setNotice }: Props) {
-  const [activeTab, setActiveTab] = useState<"lab" | "diagnostic" | null>(null);
+  const [activeTab, setActiveTab] = useState<"lab" | "diagnostic" | null>("lab");
   const [labItems, setLabItems] = useState<ServiceItem[]>([]);
   const [diagnosticItems, setDiagnosticItems] = useState<ServiceItem[]>([]);
   const [records, setRecords] = useState<DiagnosticRecord[]>([]);
@@ -1098,27 +1098,31 @@ export default function LabPage({ setNotice }: Props) {
             <Button type="button" onClick={addBlankItem}>+ Add Test</Button>
           </div>
 
-          <div className="lab-table-section blue-section">
-            <div className="lab-section-title">Lab Tests</div>
-            <table className="lab-billing-table">
-              <thead>
-                <tr><th>#</th><th>Test Code</th><th>Test Name</th><th>Category</th><th>Rate (₹)</th><th>Qty</th><th>Amount (₹)</th><th>Action</th></tr>
-              </thead>
-              <tbody>{renderRows("lab", labItems)}</tbody>
-            </table>
-            <div className="lab-total-row"><span>Total Lab Tests Amount</span><strong>₹ {formatAmount(labTotal)}</strong></div>
-          </div>
+          {activeTab === "lab" && (
+            <div className="lab-table-section blue-section">
+              <div className="lab-section-title">Lab Tests</div>
+              <table className="lab-billing-table">
+                <thead>
+                  <tr><th>#</th><th>Test Code</th><th>Test Name</th><th>Category</th><th>Rate (₹)</th><th>Qty</th><th>Amount (₹)</th><th>Action</th></tr>
+                </thead>
+                <tbody>{renderRows("lab", labItems)}</tbody>
+              </table>
+              <div className="lab-total-row"><span>Total Lab Tests Amount</span><strong>₹ {formatAmount(labTotal)}</strong></div>
+            </div>
+          )}
 
-          <div className="lab-table-section purple-section">
-            <div className="lab-section-title">Diagnostic Imaging</div>
-            <table className="lab-billing-table">
-              <thead>
-                <tr><th>#</th><th>Procedure Code</th><th>Procedure Name</th><th>Category</th><th>Rate (₹)</th><th>Qty</th><th>Amount (₹)</th><th>Action</th></tr>
-              </thead>
-              <tbody>{renderRows("diagnostic", diagnosticItems)}</tbody>
-            </table>
-            <div className="lab-total-row purple"><span>Total Diagnostic Amount</span><strong>₹ {formatAmount(diagnosticTotal)}</strong></div>
-          </div>
+          {activeTab === "diagnostic" && (
+            <div className="lab-table-section purple-section">
+              <div className="lab-section-title">Diagnostic Imaging</div>
+              <table className="lab-billing-table">
+                <thead>
+                  <tr><th>#</th><th>Procedure Code</th><th>Procedure Name</th><th>Category</th><th>Rate (₹)</th><th>Qty</th><th>Amount (₹)</th><th>Action</th></tr>
+                </thead>
+                <tbody>{renderRows("diagnostic", diagnosticItems)}</tbody>
+              </table>
+              <div className="lab-total-row purple"><span>Total Diagnostic Amount</span><strong>₹ {formatAmount(diagnosticTotal)}</strong></div>
+            </div>
+          )}
 
           {/* 3. PAYMENT & BILLING INFORMATION */}
           <h3 id="payment-billing-section" className="lab-section-header">3. Payment & Billing Information</h3>
