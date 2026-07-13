@@ -1332,12 +1332,55 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
+<<<<<<< HEAD
                 Blood Pressure
                 <div className="bp-split-wrap">
                   <Input value={bpSys} onChange={(event) => { setBpSys(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${event.target.value}/${bpDia}` })); }} placeholder="120" inputMode="numeric" />
                   <span className="bp-separator">/</span>
                   <Input value={bpDia} onChange={(event) => { setBpDia(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${bpSys}/${event.target.value}` })); }} placeholder="80" inputMode="numeric" />
                 </div>
+=======
+                Blood Pressure (Sys/Dia)
+                <Input
+                  id="registration-bp-input"
+                  value={appointmentForm.bp}
+                  onChange={(event) => setAppointmentForm((prev) => ({ ...prev, bp: event.target.value }))}
+                  placeholder="  /"
+                  onFocus={(event) => {
+                    const el = event.target as HTMLInputElement;
+                    if (!el.value) {
+                      // show visual cue but don't force user data until they type
+                      // keep state empty until they type; leave placeholder visible
+                      setTimeout(() => {
+                        try { el.setSelectionRange(0, 0); } catch { /* ignore */ }
+                      }, 0);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      const el = event.target as HTMLInputElement;
+                      const val = el.value || "";
+                      const slashIndex = val.indexOf("/");
+                      if (slashIndex >= 0) {
+                        // move caret after the slash
+                        const pos = slashIndex + 1;
+                        try { el.setSelectionRange(pos, pos); } catch { /* ignore */ }
+                        event.preventDefault();
+                      } else if (!val) {
+                        // if empty, insert a visual slash and move caret after it
+                        setAppointmentForm((prev) => ({ ...prev, bp: " / " }));
+                        setTimeout(() => {
+                          const e2 = document.getElementById("registration-bp-input") as HTMLInputElement | null;
+                          if (e2) {
+                            try { e2.setSelectionRange(2, 2); } catch { /* ignore */ }
+                          }
+                        }, 0);
+                        event.preventDefault();
+                      }
+                    }
+                  }}
+                />
+>>>>>>> 6895fbe (enhanced logo & Patients)
               </Label>
               <Label>
                 Temperature
@@ -1354,11 +1397,16 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 </div>
               </Label>
               <Label>
+<<<<<<< HEAD
                 SpO2
                 <div className="vital-input-wrap">
                   <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98" inputMode="numeric" />
                   <span className="vital-unit-badge">%</span>
                 </div>
+=======
+                SPO2
+                <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98" />
+>>>>>>> 6895fbe (enhanced logo & Patients)
               </Label>
               <Label>
                 Weight (kg)

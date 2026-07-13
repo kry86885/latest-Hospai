@@ -5303,12 +5303,13 @@ main {
 }
 
 /* Stable HospAI logo: prevents stale/missing image cache from leaving an empty white box. */
+
 .brand-logo-img,
 .brand-logo-fallback {
   flex: 0 0 auto;
   display: inline-flex;
-  width: 42px;
-  height: 42px;
+  width: 64px;
+  height: 64px;
   align-items: center;
   justify-content: center;
   object-fit: contain;
@@ -5316,9 +5317,9 @@ main {
 }
 
 .brand-logo-fallback {
-  overflow: hidden;
-  border-radius: 8px;
-  background: #ffffff;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
 }
 
 .brand-logo-fallback svg {
@@ -5516,6 +5517,13 @@ main {
   width: 82px;
   height: 70px;
   object-fit: contain;
+}
+
+/* Increase header vertical rhythm so larger logo fits comfortably */
+.topbar {
+  align-items: center;
+  padding: 0.6rem 0.4rem 0.6rem;
+  min-height: 68px;
 }
 
 

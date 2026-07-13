@@ -289,9 +289,6 @@ export default function PatientsPage({
                     <Button variant="ghost" size="sm" onClick={() => onSelect(expanded ? null : patient)}>
                       {expanded ? "Hide" : "View"}
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => void handlePrintLatestCertificate(patient.patient_id)}>
-                      Print Certificate
-                    </Button>
                   </TableCell>
                 </TableRow>
                 {expanded && (
@@ -1260,6 +1257,16 @@ function PatientDetail({
           <div>
             <h4>Certificates</h4>
             <p className="muted">Discharge summaries, medical certificates, insurance documents, and fit-to-work records.</p>
+          </div>
+          <div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void handlePrintLatestCertificate(selectedPatient?.patient_id || "")}
+              disabled={!selectedPatient}
+            >
+              Print Latest
+            </Button>
           </div>
         </div>
         <div className="care-panel-grid">
