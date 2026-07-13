@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Button, Input, Select } from "../components/ui";
-import { apiFetch } from "../lib/api";
-import type { Notice, OpSummary } from "../types";
+import { Button, Input, Modal, Select } from "../components/ui";
+import { apiFetch, reportError } from "../lib/api";
+import type { Notice, OpSummary, Patient } from "../types";
 import { PRINT_BRAND_HEADER_DATA_URI } from "../lib/printBrand";
 import { printViaIframe } from "../lib/printViaIframe";
 
@@ -21,11 +21,14 @@ type QueuePatient = {
   ageGender: string;
   visitType: string;
   arrivedAt: string;
+  arrivedAtRaw?: string;
   status: "In Queue" | "In Consultation" | "Completed" | "Yet to Come";
   mobile: string;
   appointmentId?: number;
   department?: string;
   doctor?: string;
+  consultationStartedAt?: string | null;
+  completedAt?: string | null;
 };
 
 const mapAppointmentStatus = (status?: string): QueuePatient["status"] => {
@@ -61,8 +64,15 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
   const [visitTypeFilter, setVisitTypeFilter] = useState("");
   const [queueTypeFilter, setQueueTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sortField, setSortField] = useState<"token" | "name" | "doctor" | "status">("token");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [visitDateFilter, setVisitDateFilter] = useState(() => new Date().toISOString().slice(0, 10));
   const [currentPage, setCurrentPage] = useState(1);
+  const [patientDrawerOpen, setPatientDrawerOpen] = useState(false);
+  const [patientDetails, setPatientDetails] = useState<Patient | null>(null);
+  const [patientDetailsLoading, setPatientDetailsLoading] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [timerTick, setTimerTick] = useState(0);
   const selectedPatient = queue.find((patient) => patient.token === selectedToken) || queue.find((patient) => patient.status !== "Completed") || queue[0];
   const pageSize = 8;
 
@@ -168,6 +178,17 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
     });
   }, [queue, search, departmentFilter, doctorFilter, visitTypeFilter, queueTypeFilter, statusFilter]);
 
+  const sortedQueue = useMemo(() => {
+    const next = [...filteredQueue];
+    next.sort((a, b) => {
+      const fieldA = String(a[sortField] ?? "").toLowerCase();
+      const fieldB = String(b[sortField] ?? "").toLowerCase();
+      if (fieldA === fieldB) return 0;
+      return sortDirection === "asc" ? (fieldA < fieldB ? -1 : 1) : (fieldA < fieldB ? 1 : -1);
+    });
+    return next;
+  }, [filteredQueue, sortField, sortDirection]);
+
   const queueByStatus = useMemo(() => ({
     inQueue: filteredQueue.filter((patient) => patient.status === "In Queue"),
     inConsultation: filteredQueue.filter((patient) => patient.status === "In Consultation"),
@@ -179,9 +200,9 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
     setCurrentPage(1);
   }, [search, departmentFilter, doctorFilter, visitTypeFilter, queueTypeFilter, statusFilter, visitDateFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredQueue.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedQueue.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
-  const pagedQueue = filteredQueue.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pagedQueue = sortedQueue.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const counts = useMemo(() => ({
     total: queue.length,
@@ -250,6 +271,101 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
     saveReadmitQueueState(nextQueue);
     setSelectedToken(nextQueue[0]?.token || "");
     setNotice({ type: "success", message: `${selectedToken} removed from queue.` });
+  };
+
+  const sortByField = (field: "token" | "name" | "doctor" | "status") => {
+    if (sortField === field) {
+      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortField(field);
+    setSortDirection("asc");
+  };
+
+  const formatDuration = (dateString?: string | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "-";
+    const diff = Math.max(0, Date.now() - date.getTime());
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    if (hours > 0) return `${hours}h ${remaining}m`;
+    return `${remaining}m`;
+  };
+
+  const loadPatientDetails = async (uhid: string) => {
+    setPatientDetailsLoading(true);
+    setPatientDrawerOpen(true);
+    try {
+      const data = await apiFetch<{ patient?: Patient }>(`/api/patients/${encodeURIComponent(uhid)}`);
+      setPatientDetails(data.patient || null);
+    } catch (error) {
+      reportError(setNotice, error as { message?: string; status?: number }, "Unable to load patient details.");
+      setPatientDetails(null);
+    } finally {
+      setPatientDetailsLoading(false);
+    }
+  };
+
+  const openPatientDetails = async (patient: QueuePatient) => {
+    setSelectedToken(patient.token);
+    if (patient.uhid) {
+      await loadPatientDetails(patient.uhid);
+    }
+  };
+
+  const setPatientStatus = async (patient: QueuePatient, status: QueuePatient["status"]) => {
+    const backendStatus = status === "In Consultation" ? "in_consultation" : status === "Completed" ? "completed" : status === "In Queue" ? "checked_in" : "scheduled";
+    try {
+      if (patient.appointmentId) {
+        await apiFetch(`/api/appointments/${patient.appointmentId}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: backendStatus }),
+        });
+      }
+      setQueue((current) => {
+        const next = current.map((item) => item.token === patient.token ? { ...item, status } : item);
+        saveReadmitQueueState(next);
+        return next;
+      });
+      setSelectedToken(patient.token);
+      setNotice({ type: "success", message: `${patient.token} moved to ${status}.` });
+    } catch {
+      setNotice({ type: "error", message: `Unable to update ${patient.token} status.` });
+    }
+  };
+
+  const handlePatientAction = async (patient: QueuePatient, action: "start" | "hold" | "transfer" | "remove") => {
+    if (action === "start") {
+      await setPatientStatus(patient, "In Consultation");
+      return;
+    }
+    if (action === "hold") {
+      await setPatientStatus(patient, "Yet to Come");
+      return;
+    }
+    if (action === "transfer") {
+      setSelectedToken(patient.token);
+      setNotice({ type: "success", message: `${patient.token} is ready to transfer. Select target doctor from Doctor dropdown.` });
+      return;
+    }
+    if (action === "remove") {
+      setQueue((current) => {
+        const next = current.filter((item) => item.token !== patient.token);
+        saveReadmitQueueState(next);
+        return next;
+      });
+      if (selectedToken === patient.token) {
+        setSelectedToken(queue.find((item) => item.status !== "Completed")?.token || "");
+      }
+      setNotice({ type: "success", message: `${patient.token} removed from queue.` });
+    }
+  };
+
+  const printPatientSlip = (patient: QueuePatient) => {
+    setSelectedToken(patient.token);
+    printSelectedSlip();
   };
 
   const transferSelectedToken = () => {
@@ -347,27 +463,26 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
         <div className="op-queue-title-wrap">
           <div className="op-queue-icon">♙</div>
           <div>
-            <h2>OP Queue Management</h2>
-            <p>Manage OP patient queue and consult status</p>
+            <h2>OP Queue Dashboard</h2>
+            <p>One-page overview for live patient queue, doctor assignments, and actions.</p>
           </div>
         </div>
         <div className="op-header-actions">
           <Button type="button" className="purple-action" onClick={callNext}>🔔 Call Next</Button>
           <Button type="button" onClick={() => void loadQueueFromPatients()}>⟳ Refresh</Button>
-          <Button type="button" className="green-action" onClick={() => setNotice({ type: "success", message: `Queue Summary: ${counts.total} total, ${counts.inQueue} waiting, ${counts.inConsultation} in consultation, ${counts.completed} completed.` })}>▥ Queue Summary</Button>
+          <Button type="button" className="green-action" onClick={() => setNotice({ type: "success", message: `Queue Summary: ${counts.total} total, ${counts.inQueue} waiting, ${counts.inConsultation} in consultation, ${counts.completed} completed.` })}>▥ Snapshot</Button>
         </div>
       </div>
 
       <div className="op-card queue-filters-card">
         <div className="op-filter-grid">
-          <label><span className="op-filter-label">Department <b>*</b></span><Select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}><option value="">All departments</option>{departments.map((name) => <option key={name} value={name}>{name}</option>)}</Select></label>
-          <label><span className="op-filter-label">Doctor <b>*</b></span><Select value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)}><option value="">All doctors</option>{doctors.map((name) => <option key={name} value={name}>{name}</option>)}</Select></label>
-          <label><span className="op-filter-label">Clinic / Room <b>*</b></span><Select defaultValue="OPD - 1"><option>OPD - 1</option><option>OPD - 2</option><option>Emergency</option></Select></label>
-          <label><span className="op-filter-label">Visit Date <b>*</b></span><Input type="date" value={visitDateFilter} onChange={(event) => setVisitDateFilter(event.target.value)} /></label>
+          <label><span className="op-filter-label">Department</span><Select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}><option value="">All departments</option>{departments.map((name) => <option key={name} value={name}>{name}</option>)}</Select></label>
+          <label><span className="op-filter-label">Doctor</span><Select value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)}><option value="">All doctors</option>{doctors.map((name) => <option key={name} value={name}>{name}</option>)}</Select></label>
+          <label><span className="op-filter-label">Visit Date</span><Input type="date" value={visitDateFilter} onChange={(event) => setVisitDateFilter(event.target.value)} /></label>
           <label><span className="op-filter-label">Visit Type</span><Select value={visitTypeFilter} onChange={(event) => setVisitTypeFilter(event.target.value)}><option value="">All</option><option value="OP">OPD</option><option value="IP">IP</option><option value="Emergency">Emergency</option><option value="Readmission">Readmission</option></Select></label>
           <label><span className="op-filter-label">Queue Type</span><Select value={queueTypeFilter} onChange={(event) => setQueueTypeFilter(event.target.value)}><option value="">All</option><option value="walkin">Walk-in / Appointment</option><option value="readmit">Readmission Queue</option></Select></label>
           <label><span className="op-filter-label">Status</span><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All</option><option value="In Queue">In Queue</option><option value="In Consultation">In Consultation</option><option value="Completed">Completed</option><option value="Yet to Come">Yet to Come</option></Select></label>
-          <label className="op-search-label"><span className="op-filter-label">Search Patient (UHID / Name / Mobile) <b>*</b></span><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search here..." /></label>
+          <label className="op-search-label"><span className="op-filter-label">Search</span><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="UHID, name, mobile..." /></label>
         </div>
         <aside className="queue-summary-box">
           <h3>Today's Queue Summary</h3>
@@ -389,7 +504,13 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
       <div className="op-main-grid">
         <div>
           <div className="op-card queue-board-card">
-            <h3>2. OP Queue Board</h3>
+            <div className="queue-board-header-grid">
+              <div>
+                <h3>OP Queue Board</h3>
+                <p>Monitor live queue status across all stages.</p>
+              </div>
+              <Button type="button" onClick={() => setDetailsModalOpen(true)}>Open Patient Details</Button>
+            </div>
             <div className="queue-board">
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>In Queue</span><strong>{queueByStatus.inQueue.length}</strong></div>
@@ -433,67 +554,74 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
               </div>
             </div>
           </div>
-
-          <div className="op-card queue-list-card">
-            <h3>3. Detailed Queue List</h3>
-            <table className="op-queue-table">
-              <thead><tr><th>#</th><th>Token</th><th>UHID</th><th>Patient</th><th>Age / Gender</th><th>Doctor</th><th>Status</th><th>Arrived</th><th>Action</th></tr></thead>
-              <tbody>
-                {pagedQueue.length ? pagedQueue.map((patient, index) => (
-                  <tr key={patient.token} className={patient.token === selectedToken ? "selected" : ""} onClick={() => setSelectedToken(patient.token)}>
-                    <td>{(safePage - 1) * pageSize + index + 1}</td>
-                    <td>{patient.token}</td>
-                    <td>{patient.uhid}</td>
-                    <td>{patient.name}</td>
-                    <td>{patient.ageGender}</td>
-                    <td>{patient.doctor || "-"}</td>
-                    <td><span className={getStatusBadgeClass(patient.status)}>{patient.status}</span></td>
-                    <td>{patient.arrivedAt}</td>
-                    <td><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedToken(patient.token); }}>🔊</button><button type="button" onClick={(event) => { event.stopPropagation(); setSelectedToken(patient.token); if (patient.uhid) onOpenPatient?.(patient.uhid); }}>👁</button></td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={9} className="lab-empty-row">No active OP queue entries.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="queue-pagination">
-              <span>Showing {filteredQueue.length ? (safePage - 1) * pageSize + 1 : 0} to {Math.min(safePage * pageSize, filteredQueue.length)} of {filteredQueue.length} entries</span>
-              <div>
-                <button type="button" disabled={safePage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>‹</button>
-                {Array.from({ length: totalPages }, (_, index) => index + 1).slice(0, 5).map((page) => (
-                  <button key={page} type="button" className={safePage === page ? "active" : ""} onClick={() => setCurrentPage(page)}>{page}</button>
-                ))}
-                <button type="button" disabled={safePage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>›</button>
-              </div>
-            </div>
-          </div>
-
-          <div className="op-card queue-actions-card">
-            <h3>4. Queue Actions</h3>
-            <div className="queue-action-grid">
-              <button className="queue-action green" onClick={callNext}><b>📣 Call Next Patient</b><small>Call next patient in queue</small><span>›</span></button>
-              <button className="queue-action blue" onClick={() => void updateSelectedStatus("In Consultation")}><b>♙ Start Consultation</b><small>Move patient to consultation</small><span>›</span></button>
-              <button className="queue-action teal" onClick={() => void updateSelectedStatus("Completed")}><b>✓ Finish Consultation</b><small>Mark consultation as completed</small><span>›</span></button>
-              <button className="queue-action orange" onClick={() => void updateSelectedStatus("Yet to Come")}><b>◷ Hold / Skip Token</b><small>Hold or skip this token</small><span>›</span></button>
-              <button className="queue-action purple" onClick={transferSelectedToken}><b>⇄ Transfer Token</b><small>Transfer to another doctor</small><span>›</span></button>
-              <button className="queue-action red" onClick={removeToken}><b>⊗ Remove Token</b><small>Remove from queue</small><span>›</span></button>
-            </div>
-          </div>
         </div>
 
         <div>
           <div className="op-card patient-details-card">
-            <h3>3. Patient Details</h3>
-            <div className="patient-summary-panel"><div className="patient-avatar">👤</div><div className="patient-detail-grid"><span>Token No.</span><b>{selectedPatient?.token || "-"}</b><span>Visit Type</span><b>{selectedPatient?.visitType || "-"}</b><span>Patient Name</span><b>{selectedPatient?.name || "-"}</b><span>Department</span><b>{selectedPatient?.department || "-"}</b><span>UHID</span><b>{selectedPatient?.uhid || "-"}</b><span>Doctor</span><b>{selectedPatient?.doctor || "-"}</b><span>Age / Gender</span><b>{selectedPatient?.ageGender || "-"}</b><span>Arrived At</span><b>{selectedPatient?.arrivedAt || "-"}</b><span>Mobile</span><b>{selectedPatient?.mobile || "-"}</b><span>Status</span><b className={getStatusBadgeClass(selectedPatient?.status)}>{selectedPatient?.status || "-"}</b></div></div>
-            <div className="clinical-panel"><h4>Visit / Clinical Information</h4><label>Chief Complaint<Input defaultValue="" /></label><label>Visit Reason<Input defaultValue="" /></label><label>Previous Visit<Input defaultValue="" /></label><label>Referred By<Input defaultValue="" /></label></div>
+            <div className="patient-detail-header">
+              <div>
+                <h3>Selected Patient</h3>
+                <p>{selectedPatient ? `${selectedPatient.name} — ${selectedPatient.token}` : "Select a patient card to see details."}</p>
+              </div>
+              <div className="patient-detail-actions">
+                <Button type="button" onClick={() => selectedPatient?.uhid && loadPatientDetails(selectedPatient.uhid)}>Load Profile</Button>
+                <Button type="button" className="yellow-action" onClick={printSelectedSlip}>Print Slip</Button>
+              </div>
+            </div>
+            <div className="patient-summary-panel">
+              <div className="patient-avatar">👤</div>
+              <div className="patient-detail-grid">
+                <span>Token No.</span><b>{selectedPatient?.token || "-"}</b>
+                <span>Visit Type</span><b>{selectedPatient?.visitType || "-"}</b>
+                <span>Patient Name</span><b>{selectedPatient?.name || "-"}</b>
+                <span>Department</span><b>{selectedPatient?.department || "-"}</b>
+                <span>UHID</span><b>{selectedPatient?.uhid || "-"}</b>
+                <span>Doctor</span><b>{selectedPatient?.doctor || "-"}</b>
+                <span>Age / Gender</span><b>{selectedPatient?.ageGender || "-"}</b>
+                <span>Arrived At</span><b>{selectedPatient?.arrivedAt || "-"}</b>
+                <span>Mobile</span><b>{selectedPatient?.mobile || "-"}</b>
+                <span>Status</span><b className={getStatusBadgeClass(selectedPatient?.status)}>{selectedPatient?.status || "-"}</b>
+              </div>
+            </div>
+            <div className="clinical-panel">
+              <h4>Quick Actions</h4>
+              <div className="queue-action-grid">
+                <button className="queue-action green" type="button" onClick={() => void updateSelectedStatus("In Consultation")}><b>♙ Start Consultation</b><small>Move patient to consultation</small><span>›</span></button>
+                <button className="queue-action teal" type="button" onClick={() => void updateSelectedStatus("Completed")}><b>✓ Finish Consultation</b><small>Complete this visit</small><span>›</span></button>
+                <button className="queue-action orange" type="button" onClick={() => void updateSelectedStatus("Yet to Come")}><b>◷ Hold Token</b><small>Place token on hold</small><span>›</span></button>
+                <button className="queue-action purple" type="button" onClick={transferSelectedToken}><b>⇄ Transfer</b><small>Transfer to another doctor</small><span>›</span></button>
+                <button className="queue-action red" type="button" onClick={removeToken}><b>⊗ Remove</b><small>Remove from queue</small><span>›</span></button>
+              </div>
+            </div>
           </div>
-          <div className="op-card print-slip-card"><h3>5. Print Queue Slip</h3><div className="print-slip-grid"><label>Token No.<Input value={selectedToken} onChange={(event) => setSelectedToken(event.target.value)} /></label><label>Print Format<Select defaultValue="Queue Slip"><option>Queue Slip</option><option>Doctor Copy</option></Select></label><Button type="button" className="yellow-action" onClick={printSelectedSlip}>▣ Print Slip</Button></div></div>
         </div>
       </div>
 
-      <div className="queue-note">ⓘ <b>Note:</b> Queue is based on token arrival time. Please call patient as per queue order to ensure smooth OPD flow.</div>
+      <Modal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} title="Patient Details" description="Full patient record from the backend.">
+        {patientDetailsLoading ? (
+          <p>Loading patient information…</p>
+        ) : patientDetails ? (
+          <div className="patient-details-modal">
+            <div className="patient-summary-panel">
+              <div className="patient-avatar">👤</div>
+              <div className="patient-detail-grid">
+                <span>Name</span><b>{patientDetails.name}</b>
+                <span>UHID</span><b>{patientDetails.patient_id}</b>
+                <span>Age</span><b>{patientDetails.age || "-"}</b>
+                <span>Gender</span><b>{patientDetails.gender || "-"}</b>
+                <span>Phone</span><b>{patientDetails.phone || "-"}</b>
+                <span>Address</span><b>{patientDetails.address || "-"}</b>
+                <span>Emergency Contact</span><b>{patientDetails.emergency_contact || "-"}</b>
+                <span>Allergies</span><b>{patientDetails.allergies || "-"}</b>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p>No patient details loaded yet. Select a token and click Load Profile.</p>
+        )}
+      </Modal>
+
+      <div className="queue-note">ⓘ <b>Note:</b> Queue is based on token arrival time. Please call patients in order to maintain OP flow.</div>
     </section>
   );
 }
