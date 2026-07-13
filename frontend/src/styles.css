@@ -5766,3 +5766,41 @@ main {
   }
 }
 
+
+/* --- Vital Sign Input Wrappers --------------------------- */
+.vital-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.vital-input-wrap input {
+  padding-right: 3rem;
+  width: 100%;
+}
+.vital-unit-badge {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.03em;
+}
+.bp-split-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bp-split-wrap input {
+  flex: 1;
+  min-width: 0;
+}
+.bp-separator {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}

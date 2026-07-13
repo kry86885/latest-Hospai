@@ -56,15 +56,16 @@ const DEFAULT_APPOINTMENT_FORM = {
   appointment_date: "",
   appointment_kind: "new",
   chief_complaint: "",
-  bp: "/",
-  temperature: "F",
-  pulse: "bpm",
-  spo2: "%",
+  bp: "",
+  temperature: "",
+  pulse: "",
+  spo2: "",
   weight: "",
   height: "",
   consultation_fee: "",
   payment_mode: "upi",
   notes: "",
+  operator_name: "",
 };
 
 const DEFAULT_CONSENT_FORM = {
@@ -229,6 +230,8 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [savingInsurance, setSavingInsurance] = useState(false);
 
   const [appointmentForm, setAppointmentForm] = useState({ ...DEFAULT_APPOINTMENT_FORM });
+  const [bpSys, setBpSys] = useState("");
+  const [bpDia, setBpDia] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
   const [patientResults, setPatientResults] = useState<Patient[]>([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
@@ -543,6 +546,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
           notes: buildAppointmentNotes() || undefined,
           consultation_fee: consultationFee,
           payment_mode: appointmentForm.payment_mode || "cash",
+          operator_name: appointmentForm.operator_name.trim() || undefined,
         }),
       });
       setAppointmentForm((prev) => ({
@@ -564,6 +568,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
         appointment_kind: appointmentForm.appointment_kind || "new",
         notes: buildAppointmentNotes() || undefined,
         consultation_fee: consultationFee,
+        operator_name: appointmentForm.operator_name.trim() || undefined,
       });
       await loadDoctorSuggestions();
       setNotice({ type: "success", message: `Appointment scheduled. Token #${data.token_no}. Added to OP queue.` });
@@ -596,7 +601,16 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       department: appointmentForm.department.trim() || undefined,
       doctor_name: appointmentForm.doctor_name.trim() || undefined,
       appointment_date: appointmentForm.appointment_date,
-        appointment_kind: appointmentForm.appointment_kind || "new",
+      appointment_kind: appointmentForm.appointment_kind || "new",
+      notes: buildAppointmentNotes() || undefined,
+      consultation_fee: consultationFee,
+      payment_mode: appointmentForm.payment_mode || "cash",
+      operator_name: appointmentForm.operator_name.trim() || undefined,
+    };
+
+    setSavingAppointment(true);
+    try {
+      const order = await apiFetch<{
         key_id: string;
         order_id: string;
         amount: number;
@@ -1206,6 +1220,14 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
+                Operator Name
+                <Input
+                  value={appointmentForm.operator_name}
+                  onChange={(event) => setAppointmentForm((prev) => ({ ...prev, operator_name: event.target.value }))}
+                  placeholder="Staff / Receptionist name"
+                />
+              </Label>
+              <Label>
                 Appointment Date & Time
                 <div className="appointment-time-with-period">
                   <Input
@@ -1310,24 +1332,33 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
-<<<<<<< HEAD
-                Blood Pressure (Sys/Dia)
-=======
                 Blood Pressure
->>>>>>> 4772187 (patient regrestation  improvements)
-                <Input value={appointmentForm.bp} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, bp: event.target.value }))} placeholder="120/80" />
+                <div className="bp-split-wrap">
+                  <Input value={bpSys} onChange={(event) => { setBpSys(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${event.target.value}/${bpDia}` })); }} placeholder="120" inputMode="numeric" />
+                  <span className="bp-separator">/</span>
+                  <Input value={bpDia} onChange={(event) => { setBpDia(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${bpSys}/${event.target.value}` })); }} placeholder="80" inputMode="numeric" />
+                </div>
               </Label>
               <Label>
                 Temperature
-                <Input value={appointmentForm.temperature} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, temperature: event.target.value }))} placeholder="98.6 F" />
+                <div className="vital-input-wrap">
+                  <Input value={appointmentForm.temperature} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, temperature: event.target.value }))} placeholder="98.6" inputMode="decimal" />
+                  <span className="vital-unit-badge">°F</span>
+                </div>
               </Label>
               <Label>
                 Pulse
-                <Input value={appointmentForm.pulse} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, pulse: event.target.value }))} placeholder="72 bpm" />
+                <div className="vital-input-wrap">
+                  <Input value={appointmentForm.pulse} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, pulse: event.target.value }))} placeholder="72" inputMode="numeric" />
+                  <span className="vital-unit-badge">bpm</span>
+                </div>
               </Label>
               <Label>
-                SpO2 (%)
-                <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98 %" />
+                SpO2
+                <div className="vital-input-wrap">
+                  <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98" inputMode="numeric" />
+                  <span className="vital-unit-badge">%</span>
+                </div>
               </Label>
               <Label>
                 Weight (kg)

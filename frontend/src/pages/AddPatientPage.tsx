@@ -209,6 +209,7 @@ async function printAppointmentToken(
     notes?: string;
     consultation_fee?: number | string;
     payment_mode?: string;
+    operator_name?: string;
   },
   setNotice: Dispatch<SetStateAction<Notice | null>>
 ) {
@@ -244,6 +245,7 @@ async function printAppointmentToken(
   const doctor = appointment.doctor_name || "Doctor not assigned";
   const fee = Number(appointment.consultation_fee || 0).toFixed(2);
   const paymentMode = appointment.payment_mode || "Cash";
+  const operatorName = appointment.operator_name || "-";
   const tokenNo = appointment.token_no;
   const dateStr = new Date().toLocaleString("en-IN", { dateStyle: "medium" });
 
@@ -383,6 +385,7 @@ async function printAppointmentToken(
     </div>
     
     <div class="payment-section">
+      <p style="margin:0 0 10px;font-size:12px;"><strong>Operator:</strong> ${safeText(operatorName)}</p>
       <div class="payment-title">Payment Details</div>
       <table class="payment-table">
         <thead>
@@ -480,17 +483,20 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
     visitType: "OP",
     appointmentKind: "New",
     chiefComplaint: "",
-    bp: "/",
-    temperature: "F",
-    pulse: "bpm",
-    spo2: "%",
+    bp: "",
+    temperature: "",
+    pulse: "",
+    spo2: "",
     weight: "",
     height: "",
     consultationFee: "",
     paymentMode: "UPI",
+    operatorName: "",
     additionalNotes: "",
   };
   const [appointment, setAppointment] = useState(EMPTY_APPOINTMENT_FORM);
+  const [bpSys, setBpSys] = useState("");
+  const [bpDia, setBpDia] = useState("");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctorScheduleOptions, setDoctorScheduleOptions] = useState<DoctorScheduleOption[]>([]);
   const [savingDepartment, setSavingDepartment] = useState(false);
@@ -617,6 +623,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
         notes: appointment.additionalNotes.trim() || appointment.chiefComplaint.trim() || undefined,
         consultation_fee: consultationFee,
         payment_mode: appointment.paymentMode || "cash",
+        operator_name: appointment.operatorName.trim() || undefined,
       };
       const saved = await apiFetch<{ appointment_id?: number; token_no?: number }>("/api/appointments", {
         method: "POST",
@@ -1150,7 +1157,12 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
         <div className="appointment-title-bar">APPOINTMENT IN</div>
         <div className="panel patient-registration-card appointment-card"><h3>PATIENT SEARCH & APPOINTMENT INTAKE</h3><Input value={appointment.search} onChange={handleAppointmentChange("search")} placeholder="Search by Patient ID / Mobile / Aadhaar / Name" onKeyDown={(event) => { if (event.key === "Enter") void handleSearchPatient(); }} /><div className="form-actions"><Button variant="secondary" type="button" onClick={handleSearchPatient}>Search Patient</Button><Button variant="ghost" type="button" onClick={() => setAppointment(EMPTY_APPOINTMENT_FORM)}>New Patient</Button></div></div>
         <div className="panel patient-registration-card appointment-card"><h3>SCHEDULE APPOINTMENT</h3><div className="grid-form appointment-grid-form">
-          <Label>Patient Type<Select value={appointment.patientType} onChange={handleAppointmentChange("patientType")}><option>New Patient</option><option>Existing Patient</option></Select></Label><Label>Patient ID<Input value={appointment.appointmentPatientId} onChange={handleAppointmentChange("appointmentPatientId")} placeholder="Auto-filled for existing patient" /></Label><Label><span className="label-text">Patient Name <span className="required-marker">*</span></span><Input value={appointment.appointmentPatientName} onChange={handleAppointmentChange("appointmentPatientName")} placeholder="Walk-in or existing patient" /></Label><Label><span className="label-text">Appointment Date & Time <span className="required-marker">*</span></span><div className="appointment-time-with-period"><Input type="datetime-local" value={appointment.appointmentDateTime} onChange={handleAppointmentChange("appointmentDateTime")} /><span>{getAmPmLabel(appointment.appointmentDateTime)}</span></div></Label><Label>Department<Select value={appointment.department} onChange={handleAppointmentChange("department")}><option value="">Select department</option>{departments.map((department) => { const name = String(department.department_name || "").trim(); if (!name) return null; return <option key={department.id} value={name}>{name}</option>; })}</Select></Label><Label>Doctor<Select value={appointment.doctor} onChange={handleAppointmentChange("doctor")}><option value="">Select doctor</option>{filteredDoctorOptions.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}</Select></Label><Label>Visit Type<Select value={appointment.visitType} onChange={handleAppointmentChange("visitType")}><option>OP</option><option>IP</option><option>Emergency</option></Select></Label><Label>Appointment Kind<Select value={appointment.appointmentKind} onChange={handleAppointmentChange("appointmentKind")}><option>New</option><option>Follow Up</option><option>Review</option></Select></Label><Label className="span-2">Chief Complaint / Reason for Visit<Textarea value={appointment.chiefComplaint} onChange={handleAppointmentChange("chiefComplaint")} rows={3} placeholder="Fever since 3 days, body pains, headache..." /></Label><Label>Blood Pressure<Input value={appointment.bp} onChange={handleAppointmentChange("bp")} placeholder="120/80" /></Label><Label>Temperature<Input value={appointment.temperature} onChange={handleAppointmentChange("temperature")} placeholder="98.6 F" /></Label><Label>Pulse<Input value={appointment.pulse} onChange={handleAppointmentChange("pulse")} placeholder="72 bpm" /></Label><Label>SpO2 (%)<Input value={appointment.spo2} onChange={handleAppointmentChange("spo2")} placeholder="98 %" /></Label><Label>Weight (kg)<Input value={appointment.weight} onChange={handleAppointmentChange("weight")} /></Label><Label>Height (cm)<Input value={appointment.height} onChange={handleAppointmentChange("height")} /></Label><Label><span className="label-text">Consultation Fee <span className="required-marker">*</span></span><Input type="number" min="1" required value={appointment.consultationFee} onChange={handleAppointmentChange("consultationFee")} placeholder="Enter consultation fee" /></Label><Label>Payment Mode<Select value={appointment.paymentMode} onChange={handleAppointmentChange("paymentMode")}><option>UPI</option><option>Cash</option><option>Card</option><option>Razorpay</option></Select></Label><Label className="span-2">Additional Notes<Textarea value={appointment.additionalNotes} onChange={handleAppointmentChange("additionalNotes")} rows={3} /></Label>
+          <Label>Patient Type<Select value={appointment.patientType} onChange={handleAppointmentChange("patientType")}><option>New Patient</option><option>Existing Patient</option></Select></Label><Label>Patient ID<Input value={appointment.appointmentPatientId} onChange={handleAppointmentChange("appointmentPatientId")} placeholder="Auto-filled for existing patient" /></Label><Label><span className="label-text">Patient Name <span className="required-marker">*</span></span><Input value={appointment.appointmentPatientName} onChange={handleAppointmentChange("appointmentPatientName")} placeholder="Walk-in or existing patient" /></Label><Label><span className="label-text">Appointment Date &amp; Time <span className="required-marker">*</span></span><div className="appointment-time-with-period"><Input type="datetime-local" value={appointment.appointmentDateTime} onChange={handleAppointmentChange("appointmentDateTime")} /><span>{getAmPmLabel(appointment.appointmentDateTime)}</span></div></Label><Label>Department<Select value={appointment.department} onChange={handleAppointmentChange("department")}><option value="">Select department</option>{departments.map((department) => { const name = String(department.department_name || "").trim(); if (!name) return null; return <option key={department.id} value={name}>{name}</option>; })}</Select></Label><Label>Doctor<Select value={appointment.doctor} onChange={handleAppointmentChange("doctor")}><option value="">Select doctor</option>{filteredDoctorOptions.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}</Select></Label><Label>Visit Type<Select value={appointment.visitType} onChange={handleAppointmentChange("visitType")}><option>OP</option><option>IP</option><option>Emergency</option></Select></Label><Label>Appointment Kind<Select value={appointment.appointmentKind} onChange={handleAppointmentChange("appointmentKind")}><option>New</option><option>Follow Up</option><option>Review</option></Select></Label><Label className="span-2">Chief Complaint / Reason for Visit<Textarea value={appointment.chiefComplaint} onChange={handleAppointmentChange("chiefComplaint")} rows={3} placeholder="Fever since 3 days, body pains, headache..." /></Label>
+          <Label>Blood Pressure<div className="bp-split-wrap"><Input value={bpSys} onChange={(e) => { setBpSys(e.target.value); setAppointment((prev) => ({ ...prev, bp: `${e.target.value}/${bpDia}` })); }} placeholder="120" inputMode="numeric" /><span className="bp-separator">/</span><Input value={bpDia} onChange={(e) => { setBpDia(e.target.value); setAppointment((prev) => ({ ...prev, bp: `${bpSys}/${e.target.value}` })); }} placeholder="80" inputMode="numeric" /></div></Label>
+          <Label>Temperature<div className="vital-input-wrap"><Input value={appointment.temperature} onChange={handleAppointmentChange("temperature")} placeholder="98.6" inputMode="decimal" /><span className="vital-unit-badge">°F</span></div></Label>
+          <Label>Pulse<div className="vital-input-wrap"><Input value={appointment.pulse} onChange={handleAppointmentChange("pulse")} placeholder="72" inputMode="numeric" /><span className="vital-unit-badge">bpm</span></div></Label>
+          <Label>SpO2<div className="vital-input-wrap"><Input value={appointment.spo2} onChange={handleAppointmentChange("spo2")} placeholder="98" inputMode="numeric" /><span className="vital-unit-badge">%</span></div></Label>
+          <Label>Weight (kg)<Input value={appointment.weight} onChange={handleAppointmentChange("weight")} /></Label><Label>Height (cm)<Input value={appointment.height} onChange={handleAppointmentChange("height")} /></Label><Label><span className="label-text">Consultation Fee <span className="required-marker">*</span></span><Input type="number" min="1" required value={appointment.consultationFee} onChange={handleAppointmentChange("consultationFee")} placeholder="Enter consultation fee" /></Label><Label>Payment Mode<Select value={appointment.paymentMode} onChange={handleAppointmentChange("paymentMode")}><option>UPI</option><option>Cash</option><option>Card</option><option>Razorpay</option></Select></Label><Label>Operator Name<Input value={appointment.operatorName} onChange={handleAppointmentChange("operatorName")} placeholder="Staff / Receptionist name" /></Label><Label className="span-2">Additional Notes<Textarea value={appointment.additionalNotes} onChange={handleAppointmentChange("additionalNotes")} rows={3} /></Label>
         </div><div className="form-actions appointment-actions"><Button variant="secondary" type="button" onClick={handleScheduleAppointmentToken} disabled={savingAppointment}>{savingAppointment ? "Generating..." : "Save Appointment & Generate Token"}</Button><Button variant="primary" type="button" disabled>Pay via Razorpay & Schedule</Button><Button variant="ghost" type="button" disabled={!lastGeneratedToken} onClick={() => lastGeneratedToken && printAppointmentToken(lastGeneratedToken, setNotice)}>Print</Button></div><p className="muted">Razorpay payments are disabled until backend keys are configured.</p></div>
       </div>
     </section>

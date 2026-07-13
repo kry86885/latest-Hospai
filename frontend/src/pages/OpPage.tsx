@@ -550,21 +550,6 @@ export default function OpPage({ setNotice, canEdit }: Props) {
               {savingDepartment ? "Saving..." : "Add Department"}
             </Button>
           </form>
-          {departments.length === 0 ? (
-            <p className="muted">No departments configured yet.</p>
-          ) : (
-            <div className="module-chip-list" style={{ marginTop: "8px" }}>
-              {departments.map((dept) => {
-                const name = (dept.department_name || "").trim();
-                if (!name) return null;
-                return (
-                  <span key={dept.id} className="module-chip">
-                    {name}
-                  </span>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         <div className="panel">
