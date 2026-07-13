@@ -29,6 +29,7 @@ type QueuePatient = {
   doctor?: string;
   consultationStartedAt?: string | null;
   completedAt?: string | null;
+  priority?: "High" | "Follow-up" | "Normal";
 };
 
 const mapAppointmentStatus = (status?: string): QueuePatient["status"] => {
@@ -95,10 +96,12 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
           ageGender: String(item.ageGender || "- / -"),
           visitType: String(item.visitType || "Readmission"),
           arrivedAt: String(item.arrivedAt || "--"),
+          arrivedAtRaw: String(item.arrivedAtRaw || item.arrivedAt || new Date().toISOString()),
           status: (item.status || "In Queue") as QueuePatient["status"],
           mobile: String(item.mobile || ""),
           department: String(item.department || ""),
           doctor: String(item.doctor || ""),
+          priority: String(item.priority || "Normal") as QueuePatient["priority"],
         }));
       const mapped = (data.appointments || [])
         .filter((appointment) => !["completed", "cancelled"].includes(String(appointment.status || "").toLowerCase()))
@@ -115,11 +118,13 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
             ageGender,
             visitType: appointment.appointment_kind || appointment.visit_type || "OP",
             arrivedAt: appointment.appointment_date ? new Date(appointment.appointment_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--",
+            arrivedAtRaw: appointment.appointment_date || new Date().toISOString(),
             status: mapAppointmentStatus(appointment.status),
             mobile: String(appointment.mobile || appointment.phone || ""),
             appointmentId: Number(appointment.id),
             department: String(appointment.department || ""),
             doctor: String(appointment.doctor_name || ""),
+            priority: appointment.appointment_kind === "emergency" ? "High" : appointment.follow_up_for ? "Follow-up" : "Normal",
           };
         });
       const nextQueue = [...readmitEntries, ...mapped];
@@ -164,6 +169,39 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
   }, [visitDateFilter]);
   const departments = useMemo(() => departmentOptions, [departmentOptions]);
   const doctors = useMemo(() => doctorOptions, [doctorOptions]);
+
+  useEffect(() => {
+    const id = setInterval(() => setTimerTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const waitingDuration = (patient: QueuePatient) => formatDuration(patient.arrivedAtRaw || patient.arrivedAt);
+
+  const pickNextPatient = (candidates: QueuePatient[]) => {
+    if (!candidates || !candidates.length) return null;
+    const priorityOrder: Record<string, number> = { High: 0, "Follow-up": 1, Normal: 2 };
+    const sorted = [...candidates].sort((a, b) => {
+      const pa = priorityOrder[String(a.priority || "Normal")];
+      const pb = priorityOrder[String(b.priority || "Normal")];
+      if (pa !== pb) return pa - pb;
+      const ta = new Date(a.arrivedAtRaw || a.arrivedAt || 0).getTime();
+      const tb = new Date(b.arrivedAtRaw || b.arrivedAt || 0).getTime();
+      return ta - tb;
+    });
+    return sorted[0];
+  };
+  const formatInterval = (start?: string | null, end?: string | null) => {
+    if (!start) return "-";
+    const s = new Date(start).getTime();
+    const e = end ? new Date(end).getTime() : Date.now();
+    if (Number.isNaN(s) || Number.isNaN(e) || e < s) return "-";
+    const diff = Math.max(0, e - s);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    if (hours > 0) return `${hours}h ${remaining}m`;
+    return `${remaining}m`;
+  };
 
   const filteredQueue = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -221,13 +259,20 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
   };
 
   const callNext = () => {
-    const nextPatient = queue.find((patient) => patient.status === "In Queue") || queue.find((patient) => patient.status === "Yet to Come");
-    if (!nextPatient) {
+    const waiting = queue.filter((p) => p.status === "In Queue");
+    const candidate = pickNextPatient(waiting) || queue.find((patient) => patient.status === "Yet to Come");
+    if (!candidate) {
       setNotice({ type: "warning", message: "No waiting patient is currently in the OP queue." });
       return;
     }
-    setSelectedToken(nextPatient.token);
-    setNotice({ type: "success", message: `Calling next patient: ${nextPatient.name}.` });
+    // mark as in consultation and set start time
+    setQueue((current) => {
+      const next = current.map((p) => p.token === candidate.token ? { ...p, status: "In Consultation", consultationStartedAt: p.consultationStartedAt || new Date().toISOString() } : p);
+      saveReadmitQueueState(next);
+      return next;
+    });
+    setSelectedToken(candidate.token);
+    setNotice({ type: "success", message: `Calling next patient: ${candidate.name}.` });
   };
   const saveReadmitQueueState = (nextQueue: QueuePatient[]) => {
     const readmitOnly = nextQueue.filter((patient) => patient.token.startsWith("RA-"));
@@ -248,7 +293,13 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
         });
       }
       setQueue((current) => {
-        const next = current.map((patient) => patient.token === selectedToken ? { ...patient, status } : patient);
+        const next = current.map((patient) => {
+          if (patient.token !== selectedToken) return patient;
+          const now = new Date().toISOString();
+          if (status === "In Consultation") return { ...patient, status, consultationStartedAt: patient.consultationStartedAt || now };
+          if (status === "Completed") return { ...patient, status, completedAt: patient.completedAt || now };
+          return { ...patient, status };
+        });
         saveReadmitQueueState(next);
         if (status === "Completed") {
           const nextWaiting = next.find((patient) => patient.status === "In Queue") || next.find((patient) => patient.status === "Yet to Come");
@@ -325,7 +376,13 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
         });
       }
       setQueue((current) => {
-        const next = current.map((item) => item.token === patient.token ? { ...item, status } : item);
+        const next = current.map((item) => {
+          if (item.token !== patient.token) return item;
+          const now = new Date().toISOString();
+          if (status === "In Consultation") return { ...item, status, consultationStartedAt: item.consultationStartedAt || now };
+          if (status === "Completed") return { ...item, status, completedAt: item.completedAt || now };
+          return { ...item, status };
+        });
         saveReadmitQueueState(next);
         return next;
       });
@@ -374,6 +431,40 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
       return;
     }
     setNotice({ type: "success", message: `${selectedToken} is ready to transfer. Select target doctor from Doctor dropdown.` });
+  };
+
+  const skipSelected = () => {
+    if (!selectedToken) {
+      setNotice({ type: "warning", message: "Select a patient to skip." });
+      return;
+    }
+    const patient = queue.find((p) => p.token === selectedToken);
+    if (!patient) return setNotice({ type: "warning", message: "Selected patient not found." });
+    if (patient.status !== "In Queue") return setNotice({ type: "warning", message: "Only waiting patients can be skipped." });
+    setQueue((current) => {
+      const next = current.map((p) => p.token === patient.token ? { ...p, arrivedAtRaw: new Date().toISOString() } : p);
+      saveReadmitQueueState(next);
+      return next;
+    });
+    setNotice({ type: "success", message: `${patient.token} skipped. Calling next patient.` });
+    setTimeout(() => callNext(), 150);
+  };
+
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferTargetDoctor, setTransferTargetDoctor] = useState("");
+  const openTransferModal = () => {
+    if (!selectedToken) return setNotice({ type: "warning", message: "Select a patient to transfer." });
+    setTransferModalOpen(true);
+  };
+  const confirmTransfer = () => {
+    if (!selectedToken || !transferTargetDoctor) return setNotice({ type: "warning", message: "Select target doctor." });
+    setQueue((current) => {
+      const next = current.map((p) => p.token === selectedToken ? { ...p, doctor: transferTargetDoctor } : p);
+      saveReadmitQueueState(next);
+      return next;
+    });
+    setTransferModalOpen(false);
+    setNotice({ type: "success", message: `${selectedToken} transferred to ${transferTargetDoctor}.` });
   };
 
   const printSelectedSlip = () => {
@@ -463,8 +554,8 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
         <div className="op-queue-title-wrap">
           <div className="op-queue-icon">♙</div>
           <div>
-            <h2>OP Queue Dashboard</h2>
-            <p>One-page overview for live patient queue, doctor assignments, and actions.</p>
+              <h2>OP Queue Management</h2>
+              <p>Manage OP patient queue and consult status</p>
           </div>
         </div>
         <div className="op-header-actions">
@@ -515,41 +606,68 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>In Queue</span><strong>{queueByStatus.inQueue.length}</strong></div>
                 {queueByStatus.inQueue.map((patient) => (
-                  <button key={patient.token} type="button" className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
+                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
                     <div className="queue-board-item-top"><strong>{patient.token}</strong><span>{patient.visitType}</span></div>
                     <div className="queue-board-item-name">{patient.name}</div>
                     <div className="queue-board-item-meta"><span>{patient.department || "-"}</span><span>{patient.doctor || "-"}</span></div>
-                  </button>
+                    <div className="queue-board-item-meta"><span>Wait: {waitingDuration(patient)}</span><span>{patient.priority || "Normal"}</span></div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "start"); }}>Start</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "hold"); }}>Hold</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedToken(patient.token); setTransferTargetDoctor(patient.doctor || ""); setTransferModalOpen(true); }}>Transfer</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "remove"); }}>Cancel</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
+                    </div>
+                  </div>
                 ))}
               </div>
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>In Consultation</span><strong>{queueByStatus.inConsultation.length}</strong></div>
                 {queueByStatus.inConsultation.map((patient) => (
-                  <button key={patient.token} type="button" className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
+                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
                     <div className="queue-board-item-top"><strong>{patient.token}</strong><span>{patient.visitType}</span></div>
                     <div className="queue-board-item-name">{patient.name}</div>
                     <div className="queue-board-item-meta"><span>{patient.department || "-"}</span><span>{patient.doctor || "-"}</span></div>
-                  </button>
+                    <div className="queue-board-item-meta"><span>Consult: {formatDuration(patient.consultationStartedAt)}</span><span>{patient.priority || "Normal"}</span></div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openPatientDetails(patient); }}>Open</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); void setPatientStatus(patient, "Completed"); }}>Complete</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedToken(patient.token); setTransferTargetDoctor(patient.doctor || ""); setTransferModalOpen(true); }}>Transfer</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
+                    </div>
+                  </div>
                 ))}
               </div>
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>Yet to Come</span><strong>{queueByStatus.yetToCome.length}</strong></div>
                 {queueByStatus.yetToCome.map((patient) => (
-                  <button key={patient.token} type="button" className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
+                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
                     <div className="queue-board-item-top"><strong>{patient.token}</strong><span>{patient.visitType}</span></div>
                     <div className="queue-board-item-name">{patient.name}</div>
                     <div className="queue-board-item-meta"><span>{patient.department || "-"}</span><span>{patient.doctor || "-"}</span></div>
-                  </button>
+                    <div className="queue-board-item-meta"><span>Arrives: {patient.arrivedAt}</span><span>{patient.priority || "Normal"}</span></div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openPatientDetails(patient); }}>Load</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "remove"); }}>Cancel</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
+                    </div>
+                  </div>
                 ))}
               </div>
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>Completed</span><strong>{queueByStatus.completed.length}</strong></div>
                 {queueByStatus.completed.map((patient) => (
-                  <button key={patient.token} type="button" className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
+                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
                     <div className="queue-board-item-top"><strong>{patient.token}</strong><span>{patient.visitType}</span></div>
                     <div className="queue-board-item-name">{patient.name}</div>
                     <div className="queue-board-item-meta"><span>{patient.department || "-"}</span><span>{patient.doctor || "-"}</span></div>
-                  </button>
+                    <div className="queue-board-item-meta"><span>Consulted: {formatInterval(patient.consultationStartedAt, patient.completedAt)}</span><span>Done: {patient.completedAt ? new Date(patient.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</span></div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openPatientDetails(patient); }}>View</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setNotice({ type: "success", message: `Generate invoice for ${patient.token} (not implemented).` }); }}>Invoice</button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -619,6 +737,21 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
         ) : (
           <p>No patient details loaded yet. Select a token and click Load Profile.</p>
         )}
+      </Modal>
+
+      <Modal open={transferModalOpen} onClose={() => setTransferModalOpen(false)} title="Transfer Patient" description="Select a doctor to transfer this patient to.">
+        <div style={{ display: "grid", gap: 12 }}>
+          <label style={{ display: "grid" }}><span style={{ fontWeight: 800 }}>Doctor</span>
+            <Select value={transferTargetDoctor} onChange={(e) => setTransferTargetDoctor(e.target.value)}>
+              <option value="">Select doctor</option>
+              {doctors.map((d) => <option key={d} value={d}>{d}</option>)}
+            </Select>
+          </label>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Button type="button" onClick={() => setTransferModalOpen(false)}>Cancel</Button>
+            <Button type="button" className="purple-action" onClick={confirmTransfer}>Confirm Transfer</Button>
+          </div>
+        </div>
       </Modal>
 
       <div className="queue-note">ⓘ <b>Note:</b> Queue is based on token arrival time. Please call patients in order to maintain OP flow.</div>
