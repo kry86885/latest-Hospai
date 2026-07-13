@@ -4108,6 +4108,15 @@ main {
 .queue-pagination button { border:1px solid #dbeafe; background:white; border-radius:6px; padding:6px 10px; margin-left:5px; }
 .queue-pagination button.active { background:#3b82f6; color:white; }
 .queue-pagination button:disabled { opacity:.45; cursor:not-allowed; }
+.queue-board-card { padding:16px; }
+.queue-board { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.queue-board-column { display:flex; flex-direction:column; gap:10px; padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; min-height:280px; }
+.queue-board-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid #e5edf7; font-weight:800; color:#1e3a8a; }
+.queue-board-item { display:flex; flex-direction:column; gap:6px; width:100%; padding:12px; border:1px solid transparent; border-radius:10px; background:#f8fbff; text-align:left; color:#0f172a; cursor:pointer; transition:background .15s,border-color .15s; }
+.queue-board-item:hover, .queue-board-item.selected { border-color:#bfdbfe; background:#eff6ff; }
+.queue-board-item-top { display:flex; justify-content:space-between; gap:8px; font-size:13px; }
+.queue-board-item-name { font-size:14px; font-weight:700; }
+.queue-board-item-meta { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:#475569; }
 .patient-summary-panel { display:flex; gap:18px; background:#f8fffc; border:1px solid #d6f3ea; border-radius:8px; padding:18px; margin-bottom:16px; }
 .patient-avatar { width:62px; height:62px; border-radius:50%; background:#d1fae5; display:grid; place-items:center; color:#10b981; font-size:32px; flex:none; }
 .patient-detail-grid { display:grid; grid-template-columns:110px 1fr 110px 1fr; gap:13px 18px; width:100%; font-size:13px; }
