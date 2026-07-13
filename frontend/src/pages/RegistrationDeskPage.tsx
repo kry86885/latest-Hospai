@@ -502,10 +502,13 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     }
     const doctorName = appointmentForm.doctor_name.trim();
     const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee = appointmentForm.appointment_kind === "Follow Up" || appointmentForm.appointment_kind === "Review"
-      ? selectedDoctorFees?.review_fee ?? Number(appointmentForm.consultation_fee) || 0
-      : selectedDoctorFees?.consultation_fee ?? Number(appointmentForm.consultation_fee) || 0;
-    const consultationFee = followUpFee > 0 ? followUpFee : Number(appointmentForm.consultation_fee) || 0;
+    const followUpFee =
+    appointmentForm.appointment_kind === "Follow Up" ||
+    appointmentForm.appointment_kind === "Review"
+    ? selectedDoctorFees?.review_fee ??
+      (Number(appointmentForm.consultation_fee) || 0)
+    : selectedDoctorFees?.consultation_fee ??
+      (Number(appointmentForm.consultation_fee) || 0);
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
@@ -567,10 +570,13 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     }
     const doctorName = appointmentForm.doctor_name.trim();
     const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee = appointmentForm.appointment_kind === "Follow Up" || appointmentForm.appointment_kind === "Review"
-      ? selectedDoctorFees?.review_fee ?? Number(appointmentForm.consultation_fee) || 0
-      : selectedDoctorFees?.consultation_fee ?? Number(appointmentForm.consultation_fee) || 0;
-    const consultationFee = followUpFee > 0 ? followUpFee : Number(appointmentForm.consultation_fee) || 0;
+    const followUpFee =
+    appointmentForm.appointment_kind === "Follow Up" ||
+    appointmentForm.appointment_kind === "Review"
+    ? selectedDoctorFees?.review_fee ??
+      (Number(appointmentForm.consultation_fee) || 0)
+    : selectedDoctorFees?.consultation_fee ??
+      (Number(appointmentForm.consultation_fee) || 0);
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee must be greater than zero for Razorpay payment." });
       return;
