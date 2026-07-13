@@ -710,6 +710,7 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
       }
       setPaymentForm({ ...DEFAULT_PAYMENT_FORM });
       setNotice({ type: "success", message: "Payment recorded successfully." });
+      window.dispatchEvent(new CustomEvent("dashboard:refresh"));
       await loadBilling(filters);
       await loadSelectedRevenueSummary();
     } catch (error) {
@@ -788,6 +789,7 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
 
       setPaymentForm((current) => ({ ...DEFAULT_PAYMENT_FORM, invoice_id: current.invoice_id }));
       setNotice({ type: "success", message: "Razorpay payment recorded successfully." });
+      window.dispatchEvent(new CustomEvent("dashboard:refresh"));
       await loadBilling(filters);
       await loadSelectedRevenueSummary();
     } catch (error) {

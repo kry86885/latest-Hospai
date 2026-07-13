@@ -427,6 +427,18 @@ function App() {
 
   useEffect(() => {
     if (!user) return;
+    const handleDashboardRefresh = () => {
+      void loadStats();
+      void loadPatients();
+      void loadDashboardAnalytics();
+      void loadHospitalSummary();
+    };
+    window.addEventListener("dashboard:refresh", handleDashboardRefresh);
+    return () => window.removeEventListener("dashboard:refresh", handleDashboardRefresh);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     if (hasPermission("patients.read")) {
       void loadStats();
       void loadPatients();

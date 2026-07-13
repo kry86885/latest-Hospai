@@ -32,6 +32,8 @@ type ScheduleForm = {
   start_time: string;
   end_time: string;
   slot_capacity: string;
+  consultation_fee: string;
+  review_fee: string;
   status: string;
   notes: string;
 };
@@ -70,6 +72,8 @@ const DEFAULT_SCHEDULE_FORM: ScheduleForm = {
   start_time: "09:00",
   end_time: "13:00",
   slot_capacity: "12",
+  consultation_fee: "",
+  review_fee: "",
   status: "available",
   notes: "",
 };
@@ -275,6 +279,8 @@ export default function OpPage({ setNotice, canEdit }: Props) {
           start_time: scheduleForm.start_time,
           end_time: scheduleForm.end_time,
           slot_capacity: Number(scheduleForm.slot_capacity) || 12,
+          consultation_fee: Number(scheduleForm.consultation_fee) || undefined,
+          review_fee: Number(scheduleForm.review_fee) || undefined,
           status: scheduleForm.status,
           notes: scheduleForm.notes.trim() || undefined,
         }),
@@ -523,43 +529,11 @@ export default function OpPage({ setNotice, canEdit }: Props) {
         <StatCard label="Follow-ups" value={summary.follow_ups} />
         <StatCard label="Active Queue" value={summary.active_queue} />
         <StatCard label="No-Shows" value={summary.no_shows} />
-        <StatCard label="Reminders Sent" value={summary.reminders_sent} />
-        <StatCard label="Doctors Available" value={summary.available_doctors} />
       </div>
 
       {loading ? <p className="muted">Loading OP workflow...</p> : null}
 
       <div className="op-desk-stack">
-        <div className="panel">
-          <div className="module-panel-head">
-            <div>
-              <h3>Departments</h3>
-              <p className="muted">Add OP departments once. The same list feeds Doctor Schedule, Patient Registration, and OP Queue Management dropdowns.</p>
-            </div>
-          </div>
-          <form className="module-form-grid module-sales-grid" onSubmit={handleDepartmentSubmit}>
-            <Input
-              value={departmentForm.department_name}
-              onChange={(event) => setDepartmentForm({ department_name: event.target.value })}
-              placeholder="Department name"
-              aria-label="Department name"
-              disabled={!canEdit || savingDepartment}
-            />
-            <Button type="submit" variant="primary" disabled={!canEdit || savingDepartment}>
-              {savingDepartment ? "Saving..." : "Add Department"}
-            </Button>
-          </form>
-          {departments.length === 0 ? (
-            <p className="muted">No departments added yet.</p>
-          ) : (
-            <div className="module-chip-list department-vertical-list">
-              {departments.map((department) => (
-                <span key={department.id} className="module-chip department-vertical-item">{department.department_name}</span>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="panel">
           <div className="module-panel-head">
             <h3>Doctor Schedule</h3>
@@ -594,6 +568,8 @@ export default function OpPage({ setNotice, canEdit }: Props) {
             <div className="op-time-field"><Input type="time" value={scheduleForm.start_time} onChange={(event) => setScheduleForm((current) => ({ ...current, start_time: event.target.value }))} aria-label="Start time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.start_time)}</span></div>
             <div className="op-time-field"><Input type="time" value={scheduleForm.end_time} onChange={(event) => setScheduleForm((current) => ({ ...current, end_time: event.target.value }))} aria-label="End time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.end_time)}</span></div>
             <Input type="number" min={1} value={scheduleForm.slot_capacity} onChange={(event) => setScheduleForm((current) => ({ ...current, slot_capacity: event.target.value }))} placeholder="Slot capacity" aria-label="Slot capacity" disabled={!canEdit} />
+            <Input type="number" min={0} value={scheduleForm.consultation_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, consultation_fee: event.target.value }))} placeholder="Consultation fee" aria-label="Consultation fee" disabled={!canEdit} />
+            <Input type="number" min={0} value={scheduleForm.review_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, review_fee: event.target.value }))} placeholder="Review fee" aria-label="Review fee" disabled={!canEdit} />
             <Select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value }))} aria-label="Schedule status" disabled={!canEdit}>
               <option value="available">Available</option>
               <option value="full">Full</option>
@@ -638,6 +614,8 @@ export default function OpPage({ setNotice, canEdit }: Props) {
                                 start_time: schedule.start_time,
                                 end_time: schedule.end_time,
                                 slot_capacity: String(schedule.slot_capacity || 12),
+                                consultation_fee: String(schedule.consultation_fee || ""),
+                                review_fee: String(schedule.review_fee || ""),
                                 status: schedule.status || "available",
                                 notes: schedule.notes || "",
                               })

@@ -136,9 +136,6 @@ export const EMPTY_PATIENT_FORM: PatientForm = {
   family_mobile: "",
   email: "",
   emergency_mobile: "",
-  medical_history: "",
-  current_medication: "",
-  blood_group: "",
 };
 
 export const EMPTY_SIGNUP_FORM: SignupForm = {

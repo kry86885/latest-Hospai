@@ -20,6 +20,12 @@ type Department = {
   department_name?: string;
 };
 
+type DoctorSuggestionRow = {
+  doctor_name?: string | null;
+  consultation_fee?: number | null;
+  review_fee?: number | null;
+};
+
 type ConsentRecord = {
   id: number;
   patient_id?: string;
@@ -214,6 +220,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [savingDepartment, setSavingDepartment] = useState(false);
 
   const [doctorSuggestions, setDoctorSuggestions] = useState<string[]>([]);
+  const [doctorFeeMap, setDoctorFeeMap] = useState<Record<string, { consultation_fee?: number | null; review_fee?: number | null }>>({});
 
   const [consents, setConsents] = useState<ConsentRecord[]>([]);
   const [insuranceChecks, setInsuranceChecks] = useState<InsuranceRecord[]>([]);
@@ -257,13 +264,22 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     try {
       const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null }[] }>("/api/op/doctor-schedules");
       const names = new Set<string>();
+      const feesByDoctor: Record<string, { consultation_fee?: number | null; review_fee?: number | null }> = {};
       (scheduleData.schedules || []).forEach((row) => {
         const value = (row.doctor_name || "").trim();
-        if (value) names.add(value);
+        if (!value) return;
+        names.add(value);
+        const current = feesByDoctor[value] || {};
+        feesByDoctor[value] = {
+          consultation_fee: row.consultation_fee ?? current.consultation_fee,
+          review_fee: row.review_fee ?? current.review_fee,
+        };
       });
       setDoctorSuggestions(Array.from(names).sort((a, b) => a.localeCompare(b)));
+      setDoctorFeeMap(feesByDoctor);
     } catch {
       setDoctorSuggestions([]);
+      setDoctorFeeMap({});
     }
   };
 
@@ -484,7 +500,12 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       setNotice({ type: "warning", message: "Patient name and appointment date/time are required." });
       return;
     }
-    const consultationFee = Number(appointmentForm.consultation_fee) || 0;
+    const doctorName = appointmentForm.doctor_name.trim();
+    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
+    const followUpFee = appointmentForm.appointment_kind === "Follow Up" || appointmentForm.appointment_kind === "Review"
+      ? selectedDoctorFees?.review_fee ?? Number(appointmentForm.consultation_fee) || 0
+      : selectedDoctorFees?.consultation_fee ?? Number(appointmentForm.consultation_fee) || 0;
+    const consultationFee = followUpFee > 0 ? followUpFee : Number(appointmentForm.consultation_fee) || 0;
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
@@ -500,7 +521,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
           department: appointmentForm.department.trim() || undefined,
           doctor_name: appointmentForm.doctor_name.trim() || undefined,
           appointment_date: appointmentForm.appointment_date,
-          appointment_kind: appointmentForm.appointment_kind,
+          appointment_kind: appointmentForm.appointment_kind === "Follow Up" ? "follow_up" : appointmentForm.appointment_kind === "Review" ? "review" : "new",
           notes: buildAppointmentNotes() || undefined,
           consultation_fee: consultationFee,
           payment_mode: appointmentForm.payment_mode || "cash",
@@ -544,7 +565,12 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       setNotice({ type: "warning", message: "Patient name and appointment date/time are required." });
       return;
     }
-    const consultationFee = Number(appointmentForm.consultation_fee) || 0;
+    const doctorName = appointmentForm.doctor_name.trim();
+    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
+    const followUpFee = appointmentForm.appointment_kind === "Follow Up" || appointmentForm.appointment_kind === "Review"
+      ? selectedDoctorFees?.review_fee ?? Number(appointmentForm.consultation_fee) || 0
+      : selectedDoctorFees?.consultation_fee ?? Number(appointmentForm.consultation_fee) || 0;
+    const consultationFee = followUpFee > 0 ? followUpFee : Number(appointmentForm.consultation_fee) || 0;
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee must be greater than zero for Razorpay payment." });
       return;
@@ -557,7 +583,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       department: appointmentForm.department.trim() || undefined,
       doctor_name: appointmentForm.doctor_name.trim() || undefined,
       appointment_date: appointmentForm.appointment_date,
-      appointment_kind: appointmentForm.appointment_kind,
+      appointment_kind: appointmentForm.appointment_kind === "Follow Up" ? "follow_up" : appointmentForm.appointment_kind === "Review" ? "review" : "new",
       notes: buildAppointmentNotes() || undefined,
       consultation_fee: consultationFee,
     };
@@ -1230,7 +1256,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 >
                   <option value="new">New</option>
                   <option value="follow_up">Follow-up</option>
-                  <option value="emergency">Emergency</option>
+                  <option value="review">Review</option>
                 </Select>
               </Label>
               <Label className="span-2">

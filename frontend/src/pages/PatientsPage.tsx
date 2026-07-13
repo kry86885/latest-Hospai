@@ -6,6 +6,7 @@ import { Alert, Badge, Button, Checkbox, ConfirmDialog, Input, Select, Table, Ta
 import { API_BASE, SUPPORTED_DOCUMENT_ACCEPT, SUPPORTED_DOCUMENT_EXTENSIONS } from "../lib/constants";
 import { apiFetch, getAuthHeaders, reportError } from "../lib/api";
 import { formatDate, formatDateTimeIST, getISTDateTimeKey, getTimestamp, stripUploadTimestampPrefix } from "../lib/format";
+import { printViaIframe } from "../lib/printViaIframe";
 import type { Admission, BedAllocation, Certificate, DocumentItem, Encounter, MedicationSchedule, Notice, ObservationNote, Patient, PatientMovement } from "../types";
 
 type Props = {
@@ -958,6 +959,33 @@ function PatientDetail({
     }
   };
 
+  const handlePrintCertificate = (certificate: Certificate) => {
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${certificate.title || "Certificate"}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { font-size: 24px; margin-bottom: 8px; }
+            h2 { font-size: 18px; margin-top: 16px; margin-bottom: 8px; }
+            p, div { margin: 8px 0; line-height: 1.5; }
+            .meta { color: #555; font-size: 14px; }
+            .certificate-body { white-space: pre-wrap; margin-top: 16px; }
+          </style>
+        </head>
+        <body>
+          <h1>${certificate.title || "Certificate"}</h1>
+          <div class="meta">Type: ${certificate.certificate_type.replace(/_/g, " ")}</div>
+          ${certificate.admission_id ? `<div class="meta">Admission: #${certificate.admission_id}</div>` : ""}
+          ${certificate.issued_by ? `<div class="meta">Issued by: ${certificate.issued_by}</div>` : ""}
+          ${certificate.created_at ? `<div class="meta">Created at: ${formatDateTimeIST(certificate.created_at)}</div>` : ""}
+          <div class="certificate-body">${certificate.body ? certificate.body.replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""}</div>
+        </body>
+      </html>`;
+    printViaIframe(html);
+  };
+
   const documentGroups = useMemo(() => {
     const sorted = [...documents].sort((a, b) => getTimestamp(b.created_at) - getTimestamp(a.created_at));
     const groups = new Map<string, { label: string; items: DocumentItem[] }>();
@@ -1100,22 +1128,6 @@ function PatientDetail({
               <p>Weight: {patient.weight || "-"} kg</p>
               <p>Height: {patient.height || "-"} cm</p>
               <p>Pregnant: {patient.pregnant ? "Yes" : "No"}</p>
-            </>
-          )}
-        </div>
-        <div>
-          <h4>Medical Info</h4>
-          {isEditing && editForm ? (
-            <>
-              <p className="muted">Allergies</p>
-              <Textarea value={editForm.allergies} onChange={(event) => setEditForm({ ...editForm, allergies: event.target.value })} />
-              <p className="muted">Symptoms</p>
-              <Textarea value={editForm.symptoms} onChange={(event) => setEditForm({ ...editForm, symptoms: event.target.value })} />
-            </>
-          ) : (
-            <>
-              <p>Allergies: {patient.allergies || "None"}</p>
-              <p>Symptoms: {patient.symptoms || "None"}</p>
             </>
           )}
         </div>
@@ -1293,8 +1305,16 @@ function PatientDetail({
                       {certificate.issued_by ? ` · Issued by ${certificate.issued_by}` : ""}
                     </p>
                     <p>{certificate.body}</p>
-                    {canEdit ? (
-                      <div className="module-inline-actions">
+                    <div className="module-inline-actions">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handlePrintCertificate(certificate)}
+                      >
+                        Print
+                      </Button>
+                      {canEdit ? (
                         <Button
                           type="button"
                           size="sm"
@@ -1304,8 +1324,8 @@ function PatientDetail({
                         >
                           {deletingCertificateId === certificate.id ? "Deleting..." : "Delete"}
                         </Button>
-                      </div>
-                    ) : null}
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>

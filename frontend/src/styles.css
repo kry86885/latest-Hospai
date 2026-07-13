@@ -2089,6 +2089,11 @@ main {
   gap: 0.3rem;
 }
 
+.required-marker {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
 .ui-checkbox {
   width: 14px;
   height: 14px;
