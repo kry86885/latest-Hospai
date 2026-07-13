@@ -1305,9 +1305,19 @@ function PatientDetail({
                   onChange={(event) => setCertificateForm((prev) => ({ ...prev, body: event.target.value }))}
                   rows={6}
                 />
-                <Button variant="secondary" onClick={() => void handleCreateCertificate()} disabled={savingCertificate}>
-                  {savingCertificate ? "Saving..." : "Create Certificate"}
-                </Button>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <Button variant="secondary" onClick={() => void handleCreateCertificate()} disabled={savingCertificate}>
+                    {savingCertificate ? "Saving..." : "Create Certificate"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void handlePrintLatestCertificate(selectedPatient?.patient_id || "")}
+                    disabled={!selectedPatient}
+                  >
+                    Print Latest
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}

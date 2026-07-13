@@ -5526,6 +5526,21 @@ main {
   min-height: 68px;
 }
 
+/* Ensure brand logo appears embedded: remove white box, border and shadow */
+.brand .brand-logo-img,
+.brand .brand-logo-fallback {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: auto !important;
+  height: 60px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.brand .brand-title { margin-left: 6px; }
+
 
 /* Production fix: OP/Registration department chips must stack vertically without affecting other chip lists. */
 .department-vertical-list {
