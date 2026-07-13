@@ -13,7 +13,6 @@ type ProfileUpdates = {
   weight: number | string;
   height: number | string;
   phone: string;
-  allergies: string;
   symptoms: string;
   gender: string;
   pregnant: boolean;
@@ -91,11 +90,14 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     weight: "",
     height: "",
     phone: "",
-    allergies: "",
     symptoms: "",
     gender: "",
     pregnant: false,
   });
+  const [doctorName, setDoctorName] = useState("");
+  const [doctorDepartment, setDoctorDepartment] = useState("");
+  const [reviewFee, setReviewFee] = useState("");
+  const [doctorOptions, setDoctorOptions] = useState<{ doctor_name?: string; department?: string }[]>([]);
   const [docFiles, setDocFiles] = useState<Record<string, File>>({});
   const [ocrResults, setOcrResults] = useState<OcrResultMap>({});
   const [ocrStatus, setOcrStatus] = useState<Record<string, string>>({});
@@ -108,7 +110,6 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     weight: patient?.weight ?? "",
     height: patient?.height ?? "",
     phone: patient?.phone || "",
-    allergies: patient?.allergies || "",
     symptoms: patient?.symptoms || "",
     gender: patient?.gender || "Female",
     pregnant: patient?.pregnant === 1 || patient?.pregnant === true,
@@ -123,7 +124,16 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
         reportError(setNotice, error as { message?: string; status?: number }, "Unable to load patients.");
       }
     };
+    const loadDoctorSchedules = async () => {
+      try {
+        const data = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null }[] }>('/api/op/doctor-schedules');
+        setDoctorOptions(data.schedules || []);
+      } catch {
+        setDoctorOptions([]);
+      }
+    };
     void loadPatients();
+    void loadDoctorSchedules();
   }, [setNotice]);
 
   const normalizedQuery = query.trim().toLowerCase().replace(/\s+/g, " ");
@@ -186,6 +196,9 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
   const handleSelect = async (patient: Patient) => {
     setActivePatient(patient);
     setProfileUpdates(normalizeProfile(patient));
+    setDoctorName("");
+    setDoctorDepartment("");
+    setReviewFee("");
     setDocFiles({});
     setOcrResults({});
     setOcrStatus({});
@@ -276,6 +289,50 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     setProfileUpdates((prev) => ({ ...prev, [field]: value }));
   };
 
+  const printConfirmation = () => {
+    if (!activePatient) return;
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <title>Re-visit Confirmation</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            .card { border: 1px solid #d1d5db; padding: 16px; border-radius: 8px; }
+            .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+            h2 { margin-top: 0; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>Follow-up / Re-visit Confirmation</h2>
+            <div class="row"><strong>Patient</strong><span>${(activePatient.name || "").trim()} ${activePatient.last_name || ""}</span></div>
+            <div class="row"><strong>UHID</strong><span>${activePatient.patient_id || "-"}</span></div>
+            <div class="row"><strong>Doctor</strong><span>${doctorName || "-"}</span></div>
+            <div class="row"><strong>Department</strong><span>${doctorDepartment || "-"}</span></div>
+            <div class="row"><strong>Review Fee</strong><span>${reviewFee || "-"}</span></div>
+            <div class="row"><strong>Symptoms</strong><span>${profileUpdates.symptoms || "-"}</span></div>
+            <div class="row"><strong>Notes</strong><span>${notes || "-"}</span></div>
+          </div>
+        </body>
+      </html>
+    `;
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+    frame.contentDocument?.open();
+    frame.contentDocument?.write(html);
+    frame.contentDocument?.close();
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 500);
+  };
+
   const handleReadmit = async () => {
     if (!activePatient) return;
     const activeQueueEntry = getActiveReadmitEntry(activePatient.patient_id);
@@ -301,7 +358,6 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
           weight: numberOrNull(profileUpdates.weight),
           height: numberOrNull(profileUpdates.height),
           phone: profileUpdates.phone,
-          allergies: profileUpdates.allergies,
           symptoms: profileUpdates.symptoms,
           gender: profileUpdates.gender,
           pregnant: profileUpdates.pregnant,
@@ -429,6 +485,55 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                           <Input value={profileUpdates.phone} onChange={handleProfileChange("phone")} />
                         </Label>
                         <Label>
+                          Doctor Name
+                          <Input
+                            value={doctorName}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setDoctorName(value);
+                              const match = doctorOptions.find((option) => (option.doctor_name || "").toLowerCase() === value.toLowerCase());
+                              if (match) {
+                                setDoctorDepartment(match.department || "");
+                              } else if (!value.trim()) {
+                                setDoctorDepartment("");
+                              }
+                            }}
+                            list="doctor-suggestions"
+                            placeholder="Dr. Name"
+                            aria-label="Doctor name"
+                          />
+                        </Label>
+                        <Label>
+                          Doctor Department
+                          <Input
+                            value={doctorDepartment}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setDoctorDepartment(value);
+                              const match = doctorOptions.find((option) => (option.department || "").toLowerCase() === value.toLowerCase());
+                              if (match) {
+                                setDoctorName(match.doctor_name || "");
+                              } else if (!value.trim()) {
+                                setDoctorName("");
+                              }
+                            }}
+                            list="department-suggestions"
+                            placeholder="Department"
+                            aria-label="Doctor department"
+                          />
+                        </Label>
+                        <Label>
+                          Review Fee
+                          <Input
+                            type="number"
+                            min={0}
+                            value={reviewFee}
+                            onChange={(event) => setReviewFee(event.target.value)}
+                            placeholder="0"
+                            aria-label="Review fee"
+                          />
+                        </Label>
+                        <Label>
                           Gender
                           <Select value={profileUpdates.gender} onChange={handleProfileChange("gender")}>
                             <option>Male</option>
@@ -439,10 +544,6 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                         <Label className="checkbox">
                           <Checkbox checked={profileUpdates.pregnant} onChange={handleProfileChange("pregnant")} />
                           Pregnant
-                        </Label>
-                        <Label className="span-2">
-                          Allergies
-                          <Textarea value={profileUpdates.allergies} onChange={handleProfileChange("allergies")} rows={2} />
                         </Label>
                         <Label className="span-2">
                           Current Symptoms
@@ -462,9 +563,14 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                         )}
                       </div>
 
-                      <Button variant="primary" onClick={() => void handleReadmit()} disabled={submitting || Boolean(getActiveReadmitEntry(activePatient.patient_id))}>
-                        {submitting ? "Submitting..." : "Confirm Re-admission"}
-                      </Button>
+                      <div className="readmit-actions">
+                        <Button variant="secondary" onClick={printConfirmation} disabled={!activePatient}>
+                          Print Confirmation
+                        </Button>
+                        <Button variant="primary" onClick={() => void handleReadmit()} disabled={submitting || Boolean(getActiveReadmitEntry(activePatient.patient_id))}>
+                          {submitting ? "Submitting..." : "Confirm Re-admission"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
