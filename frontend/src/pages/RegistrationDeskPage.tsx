@@ -56,10 +56,10 @@ const DEFAULT_APPOINTMENT_FORM = {
   appointment_date: "",
   appointment_kind: "new",
   chief_complaint: "",
-  bp: "",
-  temperature: "",
-  pulse: "",
-  spo2: "",
+  bp: "/",
+  temperature: "F",
+  pulse: "bpm",
+  spo2: "%",
   weight: "",
   height: "",
   consultation_fee: "",
@@ -1310,7 +1310,11 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
+<<<<<<< HEAD
                 Blood Pressure (Sys/Dia)
+=======
+                Blood Pressure
+>>>>>>> 4772187 (patient regrestation  improvements)
                 <Input value={appointmentForm.bp} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, bp: event.target.value }))} placeholder="120/80" />
               </Label>
               <Label>
@@ -1322,8 +1326,8 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 <Input value={appointmentForm.pulse} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, pulse: event.target.value }))} placeholder="72 bpm" />
               </Label>
               <Label>
-                SPO2
-                <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98%" />
+                SpO2 (%)
+                <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98 %" />
               </Label>
               <Label>
                 Weight (kg)
