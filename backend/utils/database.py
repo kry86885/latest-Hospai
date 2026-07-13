@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -470,6 +470,7 @@ def init_database():
         repair_duplicate_uhid_suffixes(conn)
 
         conn.commit()
+    migrate_employee_id_constraint()
     print("[+] PostgreSQL schema initialized")
 
 
@@ -625,8 +626,7 @@ def ensure_user_columns(conn):
         """
         UPDATE users
         SET user_type = CASE
-            WHEN access_role IN ('owner', 'hr_manager') THEN 'admin'
-            WHEN role = 'employee' THEN 'admin'
+            WHEN access_role = 'owner' THEN 'admin'
             ELSE 'normal'
         END
         WHERE user_type IS NULL OR TRIM(user_type) = ''
@@ -634,7 +634,7 @@ def ensure_user_columns(conn):
     )
     default_modules_normal = json.dumps(["dashboard", "patients"], separators=(",", ":"))
     default_modules_admin = json.dumps(
-        ["dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports"],
+        ["dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports"],
         separators=(",", ":"),
     )
     cursor.execute(
@@ -648,6 +648,33 @@ def ensure_user_columns(conn):
     """,
         (default_modules_admin, default_modules_normal),
     )
+
+    # (employee_id constraint migration handled separately in migrate_employee_id_constraint)
+
+
+def migrate_employee_id_constraint():
+    """Drop global UNIQUE on employee_id and replace with per-hospital index.
+    Runs in its own connection so the DDL is not caught in any aborted transaction."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_employee_id_key")
+            conn.commit()
+    except Exception:
+        pass  # already removed or constraint doesn't exist
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_users_hospital_employee_id
+                ON users(hospital_id, employee_id)
+                WHERE employee_id IS NOT NULL
+                """
+            )
+            conn.commit()
+    except Exception:
+        pass  # already exists
 
 
 def ensure_document_columns(conn):
@@ -2394,6 +2421,46 @@ def list_appointments(appointment_date=None, status=None, visit_type=None, docto
             LEFT JOIN patients p ON p.patient_id = a.patient_id
             {where_clause}
             ORDER BY a.appointment_date ASC, a.token_no ASC
+            """,
+            tuple(params),
+        )
+        return cursor.fetchall()
+
+
+def list_doctors_history(hospital_id, doctor_name=None, from_date=None, to_date=None, department=None):
+    scoped_hospital_id = hospital_id or resolve_hospital_id()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        clauses = ["p.hospital_id = ?"]
+        params = [scoped_hospital_id]
+        if doctor_name and doctor_name != "All":
+            clauses.append("a.doctor_name = ?")
+            params.append(doctor_name)
+        if from_date:
+            clauses.append("DATE(a.appointment_date) >= DATE(?)")
+            params.append(from_date)
+        if to_date:
+            clauses.append("DATE(a.appointment_date) <= DATE(?)")
+            params.append(to_date)
+        if department and department != "All":
+            clauses.append("a.department = ?")
+            params.append(department)
+        
+        where_clause = f" WHERE {' AND '.join(clauses)}"
+        
+        cursor.execute(
+            f"""
+            SELECT
+                a.*,
+                p.age AS age,
+                p.gender AS gender,
+                p.phone AS mobile,
+                p.phone AS phone,
+                TRIM(COALESCE(p.name, '') || ' ' || COALESCE(p.middle_name, '') || ' ' || COALESCE(p.last_name, '')) AS registered_patient_name
+            FROM appointments a
+            LEFT JOIN patients p ON p.patient_id = a.patient_id
+            {where_clause}
+            ORDER BY a.appointment_date DESC, a.token_no DESC
             """,
             tuple(params),
         )

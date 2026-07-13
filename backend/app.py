@@ -91,9 +91,6 @@ from utils.database import (
     create_ot_theatre,
     create_patient_consent,
     create_payroll_record,
-    create_pharmacy_purchase,
-    create_pharmacy_sale,
-    create_pharmacy_supplier,
     create_vendor_payment,
     current_ist_datetime,
     delete_account_ledger_entry,
@@ -107,7 +104,6 @@ from utils.database import (
     delete_document,
     delete_employee,
     delete_insurance_claim,
-    delete_inventory_item,
     delete_invoice,
     delete_lab_vendor,
     delete_leave_request,
@@ -115,8 +111,6 @@ from utils.database import (
     delete_ot_theatre,
     delete_patient,
     delete_payroll_record,
-    delete_pharmacy_purchase,
-    delete_pharmacy_supplier,
     delete_vendor_payment,
     generate_patient_id,
     get_admissions,
@@ -139,13 +133,13 @@ from utils.database import (
     get_patient,
     get_patient_by_phone,
     get_patient_stats,
-    get_pharmacy_summary,
     get_reports_overview,
     get_revenue_summary,
     init_database,
     list_account_ledger_entries,
     list_attendance,
     list_appointments,
+    list_doctors_history,
     list_bed_allocations,
     list_certificates,
     list_departments,
@@ -154,12 +148,8 @@ from utils.database import (
     list_doctor_payouts,
     list_insurance_claims,
     list_insurance_verifications,
-    list_pharmacy_purchases,
-    list_pharmacy_sales,
-    list_pharmacy_suppliers,
     list_encounters,
     list_hospitals,
-    list_inventory_items,
     list_invoices,
     list_lab_vendors,
     list_leave_requests,
@@ -195,10 +185,7 @@ from utils.database import (
     update_patient_consent,
     update_patient,
     update_payroll_record,
-    update_pharmacy_purchase,
-    update_pharmacy_supplier,
     update_vendor_payment,
-    upsert_inventory_item,
 )
 
 BASE_DIR = os.path.dirname(__file__)
@@ -701,7 +688,7 @@ def login():
 @app.post("/api/auth/signup")
 def signup():
     payload = request.get_json(force=True)
-    result = signup_employee(payload, allow_admin_creation=False)
+    result = signup_employee(payload, allow_admin_creation=False, hospital_id=request_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -926,12 +913,11 @@ def admin_create_account():
             "dashboard",
             "patients",
             "billing",
-            "pharmacy",
             "lab",
             "hrms",
         ],
     }
-    result = signup_employee(forced_payload, allow_admin_creation=True)
+    result = signup_employee(forced_payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -959,7 +945,7 @@ def admin_users_create():
         "user_type": user_type,
         "module_access": module_access,
     }
-    result = signup_employee(created_payload, allow_admin_creation=True)
+    result = signup_employee(created_payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -1997,6 +1983,25 @@ def appointments_list():
     )
 
 
+@app.get("/api/doctors-history")
+@require_permissions("patients.read")
+def doctors_history_list():
+    doctor_name = request.args.get("doctor_name")
+    from_date = request.args.get("from_date")
+    to_date = request.args.get("to_date")
+    department = request.args.get("department")
+    hospital_id = current_hospital_id()
+    
+    rows = list_doctors_history(
+        hospital_id=hospital_id,
+        doctor_name=doctor_name,
+        from_date=from_date,
+        to_date=to_date,
+        department=department
+    )
+    return jsonify({"history": rows_to_dicts(rows)})
+
+
 @app.post("/api/appointments")
 @require_permissions("patients.write")
 def appointments_create():
@@ -2878,7 +2883,7 @@ def employees_list():
 @require_permissions("admin.use")
 def employees_create():
     payload = request.get_json(force=True)
-    result = signup_employee(payload, allow_admin_creation=True)
+    result = signup_employee(payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -3676,159 +3681,23 @@ def billing_delete_claim(claim_id):
     return jsonify({"status": "ok"})
 
 
-# ==================== Pharmacy ====================
+# ==================== Pharmacy (module removed) ====================
 
 
-@app.get("/api/pharmacy/inventory")
-@require_permissions("pharmacy.read")
-def pharmacy_inventory_list():
-    return jsonify({"items": rows_to_dicts(list_inventory_items())})
-
-
-@app.post("/api/pharmacy/inventory")
-@require_permissions("pharmacy.write")
-def pharmacy_inventory_upsert():
-    payload = request.get_json(force=True)
-    validation_error = validate_required_fields(payload, ["medicine_name"])
-    if validation_error:
-        return validation_error
-    item_id = upsert_inventory_item(payload)
-    log_audit_event(
-        "upsert",
-        "pharmacy_inventory",
-        str(item_id),
-        {"medicine_name": payload.get("medicine_name")},
+@app.route("/api/pharmacy", defaults={"_path": ""}, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+@app.route("/api/pharmacy/<path:_path>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+def pharmacy_module_removed(_path):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    return (
+        jsonify(
+            {
+                "error": "Pharmacy module removed",
+                "message": "The Pharmacy module has been removed from HospAI. Existing pharmacy records are preserved but pharmacy operations are unavailable.",
+            }
+        ),
+        410,
     )
-    return jsonify({"item_id": item_id})
-
-
-@app.delete("/api/pharmacy/inventory/<int:item_id>")
-@require_permissions("pharmacy.write")
-def pharmacy_inventory_delete(item_id):
-    deleted = delete_inventory_item(item_id)
-    if not deleted:
-        return jsonify({"error": "Inventory item not found"}), 404
-    log_audit_event("delete", "pharmacy_inventory", str(item_id), {"item_id": item_id})
-    return jsonify({"status": "ok"})
-
-
-@app.post("/api/pharmacy/sales")
-@require_permissions("pharmacy.write")
-def pharmacy_sale_create():
-    payload = request.get_json(force=True)
-    validation_error = validate_required_fields(
-        payload, ["medicine_name", "quantity", "unit_price"]
-    )
-    if validation_error:
-        return validation_error
-    sale_id = create_pharmacy_sale(payload)
-    log_audit_event(
-        "create",
-        "pharmacy_sales",
-        str(sale_id),
-        {"medicine_name": payload.get("medicine_name")},
-    )
-    return jsonify({"sale_id": sale_id})
-
-
-@app.get("/api/pharmacy/sales")
-@require_permissions("pharmacy.read")
-def pharmacy_sales_list():
-    medicine_name = request.args.get("medicine_name")
-    invoice_id = request.args.get("invoice_id")
-    patient_id = request.args.get("patient_id")
-    return jsonify(
-        {
-            "sales": rows_to_dicts(
-                list_pharmacy_sales(medicine_name=medicine_name, invoice_id=invoice_id, patient_id=patient_id)
-            )
-        }
-    )
-
-
-@app.get("/api/pharmacy/suppliers")
-@require_permissions("pharmacy.read")
-def pharmacy_suppliers_list():
-    return jsonify({"suppliers": rows_to_dicts(list_pharmacy_suppliers())})
-
-
-@app.post("/api/pharmacy/suppliers")
-@require_permissions("pharmacy.write")
-def pharmacy_suppliers_create():
-    payload = request.get_json(force=True)
-    validation_error = validate_required_fields(payload, ["supplier_name"])
-    if validation_error:
-        return validation_error
-    supplier_id = create_pharmacy_supplier(payload)
-    log_audit_event("create", "pharmacy_suppliers", str(supplier_id), {"supplier_name": payload.get("supplier_name")})
-    return jsonify({"supplier_id": supplier_id})
-
-
-@app.put("/api/pharmacy/suppliers/<int:supplier_id>")
-@require_permissions("pharmacy.write")
-def pharmacy_suppliers_update(supplier_id):
-    payload = request.get_json(force=True)
-    updated = update_pharmacy_supplier(supplier_id, payload)
-    if not updated:
-        return jsonify({"error": "Supplier not found"}), 404
-    log_audit_event("update", "pharmacy_suppliers", str(supplier_id), {"supplier_id": supplier_id})
-    return jsonify({"status": "ok"})
-
-
-@app.delete("/api/pharmacy/suppliers/<int:supplier_id>")
-@require_permissions("pharmacy.write")
-def pharmacy_suppliers_delete(supplier_id):
-    deleted = delete_pharmacy_supplier(supplier_id)
-    if not deleted:
-        return jsonify({"error": "Supplier not found"}), 404
-    log_audit_event("delete", "pharmacy_suppliers", str(supplier_id), {"supplier_id": supplier_id})
-    return jsonify({"status": "ok"})
-
-
-@app.get("/api/pharmacy/purchases")
-@require_permissions("pharmacy.read")
-def pharmacy_purchases_list():
-    status = request.args.get("status")
-    return jsonify({"purchases": rows_to_dicts(list_pharmacy_purchases(status=status))})
-
-
-@app.post("/api/pharmacy/purchases")
-@require_permissions("pharmacy.write")
-def pharmacy_purchases_create():
-    payload = request.get_json(force=True)
-    validation_error = validate_required_fields(payload, ["medicine_name", "quantity", "unit_cost"])
-    if validation_error:
-        return validation_error
-    purchase_id = create_pharmacy_purchase(payload)
-    log_audit_event("create", "pharmacy_purchases", str(purchase_id), {"medicine_name": payload.get("medicine_name")})
-    return jsonify({"purchase_id": purchase_id})
-
-
-@app.put("/api/pharmacy/purchases/<int:purchase_id>")
-@require_permissions("pharmacy.write")
-def pharmacy_purchases_update(purchase_id):
-    payload = request.get_json(force=True)
-    updated = update_pharmacy_purchase(purchase_id, payload)
-    if not updated:
-        return jsonify({"error": "Purchase not found"}), 404
-    log_audit_event("update", "pharmacy_purchases", str(purchase_id), {"purchase_id": purchase_id})
-    return jsonify({"status": "ok"})
-
-
-@app.delete("/api/pharmacy/purchases/<int:purchase_id>")
-@require_permissions("pharmacy.write")
-def pharmacy_purchases_delete(purchase_id):
-    deleted = delete_pharmacy_purchase(purchase_id)
-    if not deleted:
-        return jsonify({"error": "Purchase not found"}), 404
-    log_audit_event("delete", "pharmacy_purchases", str(purchase_id), {"purchase_id": purchase_id})
-    return jsonify({"status": "ok"})
-
-
-@app.get("/api/pharmacy/summary")
-@require_permissions("pharmacy.read")
-def pharmacy_summary():
-    return jsonify(get_pharmacy_summary())
 
 
 # ==================== Lab & Diagnostics ====================

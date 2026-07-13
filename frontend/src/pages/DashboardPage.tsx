@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Modal } from "../components/ui";
 import { API_BASE } from "../lib/constants";
 import { getAuthHeaders, getHospitalCode } from "../lib/api";
-import { downloadExportBlob, filenameFromContentDisposition } from "../lib/exportShare";
+import { downloadExportBlob, filenameFromContentDisposition, shareOrDownloadExport } from "../lib/exportShare";
 import type { DashboardAnalytics, DistributionItem, HospitalSummary, Patient, Stats, User } from "../types";
 import { PRINT_BRAND_HEADER_DATA_URI } from "../lib/printBrand";
 import { printViaIframe } from "../lib/printViaIframe";
@@ -220,7 +220,7 @@ export default function DashboardPage({
   onLogout,
   onRefreshDashboard,
 }: Props) {
-  const [exportStatus, setExportStatus] = useState<"" | "print" | "pdf" | "excel" | "csv">("");
+  const [exportStatus, setExportStatus] = useState<"" | "print" | "export">("");
   const todayIso = toIsoDate(new Date());
   const [dashboardDate, setDashboardDate] = useState(todayIso);
   const [pendingDashboardDate, setPendingDashboardDate] = useState(todayIso);
@@ -229,7 +229,7 @@ export default function DashboardPage({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [todayPatientsOpen, setTodayPatientsOpen] = useState(false);
-  const [revenuePopup, setRevenuePopup] = useState<"today" | "monthly" | "lab" | "pharmacy" | null>(null);
+  const [revenuePopup, setRevenuePopup] = useState<"today" | "monthly" | "lab" | null>(null);
   const [viewPatient, setViewPatient] = useState<Patient | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const dashboardProfileRef = useRef<HTMLDivElement | null>(null);
@@ -300,44 +300,28 @@ export default function DashboardPage({
 
   const go = (page: string) => onNavigate(page);
 
-  const fetchDashboardExport = async (kind: "pdf" | "excel" | "csv") => {
-    const response = await fetch(`${API_BASE}/api/dashboard/export/${kind}`, {
+  const fetchDashboardPdf = async () => {
+    const response = await fetch(`${API_BASE}/api/dashboard/export/pdf`, {
       method: "GET",
       headers: { "X-Hospital-Code": getHospitalCode(), ...getAuthHeaders() },
       credentials: "include",
     });
 
     if (!response.ok) {
-      let message = `Unable to generate the dashboard ${kind.toUpperCase()}.`;
+      let message = "Unable to generate the dashboard PDF.";
       try {
         const payload = await response.json();
         message = payload.error || payload.message || message;
       } catch {
-        // The export endpoint normally returns binary data. JSON parsing is only for API errors.
+        // The PDF endpoint normally returns binary data. JSON parsing is only for API errors.
       }
       throw new Error(message);
     }
 
     const blob = await response.blob();
-    if (!blob.size) throw new Error(`The dashboard ${kind.toUpperCase()} export was generated empty.`);
-    const extension = kind === "pdf" ? "pdf" : kind === "excel" ? "xlsx" : "csv";
-    const filename = kind === "pdf"
-      ? filenameFromContentDisposition(response.headers.get("Content-Disposition"), `executive-dashboard.${extension}`)
-      : `executive-dashboard.${extension}`;
+    if (!blob.size) throw new Error("The dashboard PDF was generated empty.");
+    const filename = filenameFromContentDisposition(response.headers.get("Content-Disposition"), "executive-dashboard.pdf");
     return { blob, filename };
-  };
-
-  const handleDashboardExport = async (kind: "pdf" | "excel" | "csv") => {
-    if (exportStatus) return;
-    setExportStatus(kind);
-    try {
-      const { blob, filename } = await fetchDashboardExport(kind);
-      downloadExportBlob(blob, filename);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : `Unable to export the dashboard ${kind.toUpperCase()}.`);
-    } finally {
-      setExportStatus("");
-    }
   };
 
   const handlePrintDashboardPdf = async () => {
@@ -380,6 +364,27 @@ export default function DashboardPage({
     }
   };
 
+  const handleShareDashboardPdf = async () => {
+    if (exportStatus) return;
+    setExportStatus("export");
+    try {
+      const { blob, filename } = await fetchDashboardPdf();
+      const result = await shareOrDownloadExport({
+        blob,
+        filename,
+        title: "VERARA Executive Dashboard",
+        text: "VERARA executive dashboard export",
+      });
+      if (result === "downloaded") {
+        window.alert("Native file sharing is not available for this browser/device. The dashboard PDF was downloaded, and an email fallback was opened where supported.");
+      }
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to export/share the dashboard PDF.");
+    } finally {
+      setExportStatus("");
+    }
+  };
+
   const patientsForDashboardDate = useMemo(
     () => patients.filter((patient) => patientCreatedIso(patient) === dashboardDate),
     [patients, dashboardDate]
@@ -389,16 +394,9 @@ export default function DashboardPage({
   // Derived values
   const dailyOp = hospitalSummary?.ip_op_counts?.daily_op || 0;
   const dailyIp = hospitalSummary?.ip_op_counts?.daily_ip || 0;
-  const weeklyRevenue = Number(hospitalSummary?.revenue?.weekly_total ?? hospitalSummary?.revenue?.weekly_revenue ?? 0);
-  const monthlyRevenue = Number(hospitalSummary?.revenue?.monthly_total ?? hospitalSummary?.revenue?.monthly_revenue ?? hospitalSummary?.revenue?.total ?? 0);
-  const yearlyRevenue = Number(hospitalSummary?.revenue?.yearly_total ?? hospitalSummary?.revenue?.yearly_revenue ?? 0);
-  const todayRevenue = Number(hospitalSummary?.revenue?.today_total ?? hospitalSummary?.revenue?.today_collection ?? 0);
-  const dueRevenue = Number(hospitalSummary?.revenue?.due ?? hospitalSummary?.payment_summary?.pending_payments ?? 0);
-  const totalCollection = Number(hospitalSummary?.payment_summary?.total_collection ?? hospitalSummary?.revenue?.total_collection ?? monthlyRevenue ?? 0);
-  const pendingPayments = Number(hospitalSummary?.payment_summary?.pending_payments ?? hospitalSummary?.revenue?.pending_payments ?? dueRevenue ?? 0);
-  const paidPayments = Number(hospitalSummary?.payment_summary?.paid_payments ?? hospitalSummary?.revenue?.paid_payments ?? monthlyRevenue ?? 0);
-  const todayCollection = Number(hospitalSummary?.payment_summary?.today_collection ?? hospitalSummary?.revenue?.today_collection ?? todayRevenue ?? 0);
-  const pharmSales = hospitalSummary?.pharmacy_summary?.monthly_sales || 0;
+  const monthlyRevenue = hospitalSummary?.revenue?.monthly_total ?? hospitalSummary?.revenue?.total ?? 0;
+  const todayRevenue = hospitalSummary?.revenue?.today_total ?? 0;
+  const dueRevenue = hospitalSummary?.revenue?.due || 0;
   const diagIncome = hospitalSummary?.diagnostics_summary?.monthly_income || 0;
   const doctorPayoutReady = hospitalSummary?.revenue?.doctor_payout_ready || 0;
   const revenueBreakdown = hospitalSummary?.revenue?.module_breakdown || {};
@@ -433,37 +431,26 @@ export default function DashboardPage({
         { module: "Pending / Due", amount: 0 },
       ];
     }
-    if (revenuePopup === "pharmacy") {
-      return [
-        { module: "Pharmacy", amount: pharmSales },
-        { module: "Collected", amount: pharmSales },
-        { module: "Pending / Due", amount: 0 },
-      ];
-    }
     const activeBreakdown = revenuePopup === "today" ? todayRevenueBreakdown : monthlyRevenueBreakdown;
     const activeTotal = revenuePopup === "today" ? todayRevenue : monthlyRevenue;
     const labAmount = Number(activeBreakdown.lab_diagnostics ?? (revenuePopup === "today" ? 0 : diagIncome));
-    const pharmacyAmount = Number(activeBreakdown.pharmacy ?? (revenuePopup === "today" ? 0 : pharmSales));
-    const opAmount = Number(activeBreakdown.op_billing ?? Math.max(activeTotal - labAmount - pharmacyAmount, 0));
+    const opAmount = Number(activeBreakdown.op_billing ?? Math.max(activeTotal - labAmount, 0));
     return [
       { module: "OP / Billing", amount: opAmount },
       { module: "Lab & Diagnostics", amount: labAmount },
-      { module: "Pharmacy", amount: pharmacyAmount },
       { module: "Pending / Due", amount: dueRevenue },
     ];
-  }, [revenuePopup, todayRevenue, monthlyRevenue, diagIncome, pharmSales, dueRevenue, todayRevenueBreakdown, monthlyRevenueBreakdown]);
+  }, [revenuePopup, todayRevenue, monthlyRevenue, diagIncome, dueRevenue, todayRevenueBreakdown, monthlyRevenueBreakdown]);
 
-  const revenuePopupTotal = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : revenuePopup === "pharmacy" ? pharmSales : monthlyRevenue;
-  const revenuePopupCollected = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : revenuePopup === "pharmacy" ? pharmSales : monthlyRevenue;
-  const revenuePopupOutstanding = revenuePopup === "lab" || revenuePopup === "pharmacy" ? 0 : dueRevenue;
+  const revenuePopupTotal = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : monthlyRevenue;
+  const revenuePopupCollected = revenuePopup === "today" ? todayRevenue : revenuePopup === "lab" ? diagIncome : monthlyRevenue;
+  const revenuePopupOutstanding = revenuePopup === "lab" ? 0 : dueRevenue;
   const revenuePopupTitle =
     revenuePopup === "today"
       ? "Today's Revenue Details"
       : revenuePopup === "lab"
         ? "Lab Revenue Details"
-        : revenuePopup === "pharmacy"
-          ? "Pharmacy Revenue Details"
-          : "Monthly Revenue Details";
+        : "Monthly Revenue Details";
 
   const downloadRevenuePopupPdf = () => {
     if (!revenuePopup) return;
@@ -510,10 +497,10 @@ export default function DashboardPage({
         <body>
           <main class="pdf">
             <header class="print-header">
-              <img class="print-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic, Pharmacy, Diagnostics" />
+              <img class="print-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic &amp; Diagnostics" />
               <div>
                 <p class="print-brand-title">VERARA</p>
-                <p class="print-brand-line">POLYCLINIC, PHARMACY,</p>
+                <p class="print-brand-line">POLYCLINIC &amp;</p>
                 <p class="print-brand-line">DIAGNOSTICS</p>
                 
                 
@@ -647,17 +634,9 @@ export default function DashboardPage({
             <span className="hosp-dashboard-action-icon">🖨️</span>
             <span>{exportStatus === "print" ? "Preparing..." : "Print"}</span>
           </button>
-          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("pdf")} disabled={exportStatus !== ""}>
-            <span className="hosp-dashboard-action-icon">📄</span>
-            <span>{exportStatus === "pdf" ? "Preparing..." : "PDF"}</span>
-          </button>
-          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("excel")} disabled={exportStatus !== ""}>
-            <span className="hosp-dashboard-action-icon">📊</span>
-            <span>{exportStatus === "excel" ? "Preparing..." : "Excel"}</span>
-          </button>
-          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleDashboardExport("csv")} disabled={exportStatus !== ""}>
-            <span className="hosp-dashboard-action-icon">📁</span>
-            <span>{exportStatus === "csv" ? "Preparing..." : "CSV"}</span>
+          <button type="button" className="hosp-dashboard-icon-btn" onClick={() => void handleShareDashboardPdf()} disabled={exportStatus !== ""}>
+            <span className="hosp-dashboard-action-icon">↗️</span>
+            <span>{exportStatus === "export" ? "Preparing..." : "Export / Share"}</span>
           </button>
           <div className="hosp-dashboard-profile-wrap" ref={dashboardProfileRef}>
             <button type="button" className="hosp-dashboard-user" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} aria-haspopup="menu">
@@ -714,14 +693,6 @@ export default function DashboardPage({
           sub="Current month diagnostics"
           iconBg="linear-gradient(135deg,#3b82f6,#2563eb)"
           onClick={() => setRevenuePopup("lab")}
-        />
-        <KpiCard
-          icon={<svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M9 7h6M9 17h6"/></svg>}
-          label="Pharmacy Revenue"
-          value={formatCurrencyShort(pharmSales)}
-          sub="Current month pharmacy sales"
-          iconBg="linear-gradient(135deg,#ec4899,#db2777)"
-          onClick={() => setRevenuePopup("pharmacy")}
         />
       </div>
 
@@ -795,7 +766,7 @@ export default function DashboardPage({
         {/* Revenue Snapshot */}
         <Card className="panel hosp-section-card">
           <CardHeader style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle>Revenue Snapshot</CardTitle>
+            <CardTitle>Revenue Snapshot (Today)</CardTitle>
             <button className="hosp-view-all" onClick={() => go("billing-module-collections")}>View All</button>
           </CardHeader>
           <CardContent>
@@ -803,12 +774,11 @@ export default function DashboardPage({
               {[
                 { label: "Today Revenue", icon: "🏥", value: todayRevenue },
                 { label: "Lab & Diagnostic Billing", icon: "🧪", value: diagIncome },
-                { label: "Pharmacy Revenue", icon: "💊", value: pharmSales },
                 { label: "Monthly Revenue", icon: "📅", value: monthlyRevenue },
                 { label: "Pending Payments", icon: "⚠️", value: dueRevenue },
                 { label: "Doctor Payout Ready", icon: "👨‍⚕️", value: doctorPayoutReady },
               ].map((row) => (
-                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Pharmacy") ? "pharmacy" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-record-payment")}>
+                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-record-payment")}>
                   <span className="hosp-rev-icon">{row.icon}</span>
                   <span className="hosp-rev-label">{row.label}</span>
                   <span className="hosp-rev-value">{formatCurrencyShort(row.value)}</span>
@@ -829,27 +799,22 @@ export default function DashboardPage({
         {/* Payment Summary */}
         <Card className="panel hosp-section-card">
           <CardHeader style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle>Payment Summary</CardTitle>
+            <CardTitle>Payment Summary (Today)</CardTitle>
             <button className="hosp-view-all" onClick={() => go("billing-record-payment")}>View Details</button>
           </CardHeader>
           <CardContent>
             <div className="hosp-pay-list">
-              {[
-                { label: "Total Collection", value: totalCollection },
-                { label: "Pending Payments", value: pendingPayments },
-                { label: "Paid Payments", value: paidPayments },
-                { label: "Today's Collection", value: todayCollection },
-              ].map((row) => (
+              {paymentSummaryRows.map((row) => (
                 <button key={row.label} type="button" className="hosp-pay-row hosp-table-click" onClick={() => go("billing-record-payment")}>
                   <span className="hosp-pay-icon">💳</span>
                   <span className="hosp-pay-label">{row.label}</span>
-                  <span className="hosp-pay-value">{formatCurrencyShort(row.value)}</span>
+                  <span className="hosp-pay-value">{formatCurrencyShort(row.count)}</span>
                 </button>
               ))}
             </div>
             <div className="hosp-pay-total-row">
-              <span>Live Summary</span>
-              <span style={{ color: "#0891b2", fontWeight: 700 }}>{formatCurrencyShort(totalCollection)}</span>
+              <span>Total Collected</span>
+              <span style={{ color: "#0891b2", fontWeight: 700 }}>{formatCurrencyShort(paymentSummaryTotal)}</span>
             </div>
           </CardContent>
         </Card>

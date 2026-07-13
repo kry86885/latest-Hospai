@@ -274,7 +274,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
     return match?.count || 0;
   };
   const labRevenue = findCollectionAmount(["lab", "diagnostic"]);
-  const pharmacyRevenue = findCollectionAmount(["pharmacy", "pharma"]);
   const todayRevenue = summary.total_collected;
   const monthlyRevenue = summary.total_collected;
   const pendingPayments = summary.total_due;
@@ -627,10 +626,10 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
         <body>
           <main class="sheet">
             <header class="header">
-              <img class="brand-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic, Pharmacy, Diagnostics" />
+              <img class="brand-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic &amp; Diagnostics" />
               <div>
                 <p class="brand-title">VERARA</p>
-                <p class="brand-line">POLYCLINIC, PHARMACY,</p>
+                <p class="brand-line">POLYCLINIC &amp;</p>
                 <p class="brand-line">DIAGNOSTICS</p>
               </div>
               <div class="meta"><h1>Invoice Receipt</h1><p><strong>Printed:</strong> ${safePrintText(printedAt)}</p><p><strong>Status:</strong> ${safePrintText(invoice.payment_status || "-")}</p></div>
@@ -958,7 +957,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <option value="OP">OP</option>
                 <option value="IP">IP</option>
                 <option value="LAB">Lab</option>
-                <option value="PHARMACY">Pharmacy</option>
               </Select>
             </Label>
             <Label>
@@ -1057,7 +1055,7 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <Input
                   value={paymentForm.payment_for}
                   onChange={(event) => setPaymentForm((current) => ({ ...current, payment_for: event.target.value }))}
-                  placeholder="Pharmacy, Lab and Diagnostics..."
+                  placeholder="Lab, Diagnostics, OP billing..."
                   aria-label="Billing payment for"
                 />
               </Label>
@@ -1364,7 +1362,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
                 <option value="OP">OP</option>
                 <option value="IP">IP</option>
                 <option value="LAB">Lab</option>
-                <option value="PHARMACY">Pharmacy</option>
               </Select>
             </Label>
             <Label>
@@ -1503,7 +1500,6 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
             {[
               { label: "Today Revenue", icon: "🏥", value: todayRevenue },
               { label: "Lab & Diagnostic Billing", icon: "🧪", value: labRevenue },
-              { label: "Pharmacy Revenue", icon: "💊", value: pharmacyRevenue },
               { label: "Monthly Revenue", icon: "📅", value: monthlyRevenue },
               { label: "Pending Payments", icon: "⚠️", value: pendingPayments },
               { label: "Doctor Payout Ready", icon: "👨‍⚕️", value: doctorPayoutReady },

@@ -26,14 +26,13 @@ ADMIN_ROUTE_AUTH_TTL_SECONDS = int(os.getenv("ADMIN_ROUTE_AUTH_TTL_SECONDS", "36
 ADMIN_ROUTE_AUTH_SECRET = os.getenv("ADMIN_ROUTE_AUTH_SECRET", "") or SESSION_PEPPER or "hospai-admin-route-auth"
 
 USER_TYPES = ("admin", "normal")
-ASSIGNABLE_MODULES = ("dashboard", "patients", "billing", "pharmacy", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai")
+ASSIGNABLE_MODULES = ("dashboard", "patients", "billing", "lab", "hrms", "ot", "accounts", "reports", "symptom_ai")
 DEFAULT_NORMAL_MODULES = ("dashboard", "patients")
 
 MODULE_PERMISSION_MAP = {
     "dashboard": {"patients.read"},
     "patients": {"patients.read", "patients.write"},
     "billing": {"billing.read", "billing.write"},
-    "pharmacy": {"pharmacy.read", "pharmacy.write"},
     "lab": {"lab.read", "lab.write"},
     "hrms": {"hr.read", "hr.write"},
     "ot": {"ot.read", "ot.write"},
@@ -50,8 +49,6 @@ ADMIN_PERMISSIONS = {
     "employees.write",
     "billing.read",
     "billing.write",
-    "pharmacy.read",
-    "pharmacy.write",
     "lab.read",
     "lab.write",
     "hr.read",
@@ -139,12 +136,10 @@ def normalize_user_type(user_type: Optional[str], access_role: Optional[str] = N
     if normalized in USER_TYPES:
         return normalized
 
+    # Only the 'owner' access role implicitly grants admin type when user_type is not stored.
+    # 'hr_manager' and other roles default to 'normal' per current access control rules.
     normalized_access_role = (access_role or "").strip().lower()
-    if normalized_access_role in {"owner", "hr_manager"}:
-        return "admin"
-
-    normalized_legacy_role = (legacy_role or "").strip().lower()
-    if normalized_legacy_role == "employee":
+    if normalized_access_role == "owner":
         return "admin"
 
     return "normal"
@@ -181,12 +176,14 @@ def default_modules_for_legacy(access_role: Optional[str], legacy_role: Optional
     normalized_access_role = (access_role or "").strip().lower()
     normalized_legacy_role = (legacy_role or "").strip().lower()
 
-    if normalized_access_role in {"owner", "hr_manager"} or normalized_legacy_role == "employee":
+    if normalized_access_role == "owner":
         return list(ASSIGNABLE_MODULES)
     if normalized_access_role == "clinician":
-        return ["dashboard", "patients", "lab", "pharmacy"]
+        return ["dashboard", "patients", "lab"]
     if normalized_access_role == "receptionist":
         return ["dashboard", "patients", "billing"]
+    if normalized_access_role == "hr_manager":
+        return ["dashboard", "hrms"]
 
     if normalized_legacy_role == "staff":
         return ["dashboard", "patients", "billing"]
@@ -385,6 +382,13 @@ def authenticate(username: str, password: str, hospital_id: Optional[int] = None
         if verify_password(password, user_map.get("password_hash", "")):
             if user_map.get("status") == "inactive":
                 return {"error": "Account is inactive. Please contact administrator."}
+            
+            resolved_hospital_id = user_map.get("hospital_id") or scoped_hospital_id
+            cursor.execute("SELECT code, status FROM hospitals WHERE id = ?", (resolved_hospital_id,))
+            h_row = cursor.fetchone()
+            if h_row and h_row["status"] != "active":
+                return {"error": "This hospital account has been disabled. Please contact the platform administrator."}
+            
             profile = resolve_user_profile(
                 {
                     "username": username,
@@ -400,14 +404,18 @@ def authenticate(username: str, password: str, hospital_id: Optional[int] = None
                 }
             )
             profile["id"] = user_map.get("id")
-            profile["hospital_id"] = user_map.get("hospital_id") or scoped_hospital_id
+            profile["hospital_id"] = resolved_hospital_id
+            
+            if h_row:
+                profile["hospital_code"] = h_row["code"]
+                
             return profile
     return None
 
 
-def signup_employee(data: dict, allow_admin_creation: bool = True) -> dict:
+def signup_employee(data: dict, allow_admin_creation: bool = True, hospital_id: Optional[int] = None) -> dict:
     """Register a new employee account."""
-    scoped_hospital_id = resolve_hospital_id()
+    scoped_hospital_id = hospital_id or resolve_hospital_id()
     password_error = validate_password(data.get("password", ""))
     if password_error:
         return {"success": False, "message": password_error}
@@ -497,6 +505,8 @@ def signup_hospital_admin(data: dict, hospital_id: Optional[int] = None) -> dict
         "status": "active",
         "address": data.get("address", ""),
         "emergency_contact": data.get("emergency_contact", ""),
+        "user_type": "admin",
+        "module_access": list(ASSIGNABLE_MODULES),
     }
 
     try:
