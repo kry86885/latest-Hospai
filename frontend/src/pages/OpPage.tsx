@@ -536,6 +536,39 @@ export default function OpPage({ setNotice, canEdit }: Props) {
       <div className="op-desk-stack">
         <div className="panel">
           <div className="module-panel-head">
+            <h3>Manage Departments</h3>
+          </div>
+          <form className="module-inline-actions" onSubmit={handleDepartmentSubmit} style={{ marginBottom: "16px" }}>
+            <Input
+              value={departmentForm.department_name}
+              onChange={(event) => setDepartmentForm({ department_name: event.target.value })}
+              placeholder="Enter new department name"
+              aria-label="Department name"
+              disabled={!canEdit}
+            />
+            <Button type="submit" variant="primary" disabled={!canEdit || savingDepartment}>
+              {savingDepartment ? "Saving..." : "Add Department"}
+            </Button>
+          </form>
+          {departments.length === 0 ? (
+            <p className="muted">No departments configured yet.</p>
+          ) : (
+            <div className="module-chip-list" style={{ marginTop: "8px" }}>
+              {departments.map((dept) => {
+                const name = (dept.department_name || "").trim();
+                if (!name) return null;
+                return (
+                  <span key={dept.id} className="module-chip">
+                    {name}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="module-panel-head">
             <h3>Doctor Schedule</h3>
           </div>
           <form className="module-form-grid module-sales-grid op-perfect-schedule-form" onSubmit={handleScheduleSubmit}>
