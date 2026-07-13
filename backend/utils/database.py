@@ -469,6 +469,7 @@ def init_database():
         repair_duplicate_uhid_suffixes(conn)
 
         conn.commit()
+    migrate_employee_id_constraint()
     print("[+] PostgreSQL schema initialized")
 
 
@@ -624,8 +625,7 @@ def ensure_user_columns(conn):
         """
         UPDATE users
         SET user_type = CASE
-            WHEN access_role IN ('owner', 'hr_manager') THEN 'admin'
-            WHEN role = 'employee' THEN 'admin'
+            WHEN access_role = 'owner' THEN 'admin'
             ELSE 'normal'
         END
         WHERE user_type IS NULL OR TRIM(user_type) = ''
@@ -647,6 +647,33 @@ def ensure_user_columns(conn):
     """,
         (default_modules_admin, default_modules_normal),
     )
+
+    # (employee_id constraint migration handled separately in migrate_employee_id_constraint)
+
+
+def migrate_employee_id_constraint():
+    """Drop global UNIQUE on employee_id and replace with per-hospital index.
+    Runs in its own connection so the DDL is not caught in any aborted transaction."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_employee_id_key")
+            conn.commit()
+    except Exception:
+        pass  # already removed or constraint doesn't exist
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_users_hospital_employee_id
+                ON users(hospital_id, employee_id)
+                WHERE employee_id IS NOT NULL
+                """
+            )
+            conn.commit()
+    except Exception:
+        pass  # already exists
 
 
 def ensure_document_columns(conn):

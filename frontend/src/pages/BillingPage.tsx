@@ -626,10 +626,10 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
         <body>
           <main class="sheet">
             <header class="header">
-              <img class="brand-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic, Pharmacy, Diagnostics" />
+              <img class="brand-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic &amp; Diagnostics" />
               <div>
                 <p class="brand-title">VERARA</p>
-                <p class="brand-line">POLYCLINIC, PHARMACY,</p>
+                <p class="brand-line">POLYCLINIC &amp;</p>
                 <p class="brand-line">DIAGNOSTICS</p>
               </div>
               <div class="meta"><h1>Invoice Receipt</h1><p><strong>Printed:</strong> ${safePrintText(printedAt)}</p><p><strong>Status:</strong> ${safePrintText(invoice.payment_status || "-")}</p></div>

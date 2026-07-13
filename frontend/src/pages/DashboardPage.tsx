@@ -497,10 +497,10 @@ export default function DashboardPage({
         <body>
           <main class="pdf">
             <header class="print-header">
-              <img class="print-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic, Pharmacy, Diagnostics" />
+              <img class="print-logo" src="${PRINT_BRAND_HEADER_DATA_URI}" alt="VERARA Polyclinic &amp; Diagnostics" />
               <div>
                 <p class="print-brand-title">VERARA</p>
-                <p class="print-brand-line">POLYCLINIC, PHARMACY,</p>
+                <p class="print-brand-line">POLYCLINIC &amp;</p>
                 <p class="print-brand-line">DIAGNOSTICS</p>
                 
                 

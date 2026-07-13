@@ -9,7 +9,7 @@ from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 BRAND_NAME = "VERARA"
-BRAND_TAGLINE = "POLYCLINIC, PHARMACY, DIAGNOSTICS"
+BRAND_TAGLINE = "POLYCLINIC & DIAGNOSTICS"
 
 
 def _frontend_logo_path():
@@ -66,13 +66,13 @@ def draw_pdf_brand_header(pdf, left_margin: float, top_y: float, title_width: fl
     pdf.set_x(text_x)
     pdf.set_font("Helvetica", "B", 8.5)
     pdf.set_text_color(20, 61, 94)
-    pdf.cell(70, 4.5, "POLYCLINIC, PHARMACY,", ln=True)
+    pdf.cell(70, 4.5, "POLYCLINIC &", ln=True)
     pdf.set_x(text_x)
     pdf.cell(70, 4.5, "DIAGNOSTICS", ln=True)
     pdf.set_x(text_x)
     pdf.set_font("Helvetica", "", 7.5)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(70, 4, "Polyclinic | Pharmacy | Diagnostics", ln=True)
+    pdf.cell(70, 4, "Polyclinic | Diagnostics", ln=True)
 
     pdf.set_text_color(0, 0, 0)
 
@@ -137,7 +137,7 @@ def generate_pdf(patient_name: str, doc_type: str, ocr_text: str, date_str: str 
             self.set_y(-13)
             self.set_font("Helvetica", "", 7.5)
             self.set_text_color(90, 104, 119)
-            self.cell(0, 4, _pdf_clean("This document is system generated for VERARA Polyclinic, Pharmacy, Diagnostics. Verify clinical content before treatment decisions."), align="C", ln=True)
+            self.cell(0, 4, _pdf_clean("This document is system generated for VERARA Polyclinic & Diagnostics. Verify clinical content before treatment decisions."), align="C", ln=True)
             self.cell(0, 4, _pdf_clean(f"Page {self.page_no()}/{{nb}}"), align="C")
             self.set_text_color(0, 0, 0)
 

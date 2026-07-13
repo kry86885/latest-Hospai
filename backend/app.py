@@ -688,7 +688,7 @@ def login():
 @app.post("/api/auth/signup")
 def signup():
     payload = request.get_json(force=True)
-    result = signup_employee(payload, allow_admin_creation=False)
+    result = signup_employee(payload, allow_admin_creation=False, hospital_id=request_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -917,7 +917,7 @@ def admin_create_account():
             "hrms",
         ],
     }
-    result = signup_employee(forced_payload, allow_admin_creation=True)
+    result = signup_employee(forced_payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -945,7 +945,7 @@ def admin_users_create():
         "user_type": user_type,
         "module_access": module_access,
     }
-    result = signup_employee(created_payload, allow_admin_creation=True)
+    result = signup_employee(created_payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -2797,7 +2797,7 @@ def employees_list():
 @require_permissions("admin.use")
 def employees_create():
     payload = request.get_json(force=True)
-    result = signup_employee(payload, allow_admin_creation=True)
+    result = signup_employee(payload, allow_admin_creation=True, hospital_id=current_hospital_id())
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 

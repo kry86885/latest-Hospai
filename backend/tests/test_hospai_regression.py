@@ -100,6 +100,7 @@ def test_ops_workflows_cover_reminders_ot_and_accounts(auth_client, create_patie
             "department": "General Medicine",
             "doctor_name": "Dr. Queue",
             "appointment_date": "2026-03-04T09:30:00",
+            "consultation_fee": 200,
         },
     )
     assert appointment.status_code == 200
