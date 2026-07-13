@@ -22,6 +22,7 @@ type Department = {
 
 type DoctorSuggestionRow = {
   doctor_name?: string | null;
+  department?: string | null;
   consultation_fee?: number | null;
   review_fee?: number | null;
 };
@@ -220,7 +221,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [savingDepartment, setSavingDepartment] = useState(false);
 
   const [doctorSuggestions, setDoctorSuggestions] = useState<string[]>([]);
-  const [doctorFeeMap, setDoctorFeeMap] = useState<Record<string, { consultation_fee?: number | null; review_fee?: number | null }>>({});
+  const [doctorFeeMap, setDoctorFeeMap] = useState<Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }>>({});
 
   const [consents, setConsents] = useState<ConsentRecord[]>([]);
   const [insuranceChecks, setInsuranceChecks] = useState<InsuranceRecord[]>([]);
@@ -262,15 +263,16 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
 
   const loadDoctorSuggestions = async () => {
     try {
-      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null }[] }>("/api/op/doctor-schedules");
+      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null }[] }>("/api/op/doctor-schedules");
       const names = new Set<string>();
-      const feesByDoctor: Record<string, { consultation_fee?: number | null; review_fee?: number | null }> = {};
+      const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
       (scheduleData.schedules || []).forEach((row) => {
         const value = (row.doctor_name || "").trim();
         if (!value) return;
         names.add(value);
         const current = feesByDoctor[value] || {};
         feesByDoctor[value] = {
+          department: row.department ?? current.department,
           consultation_fee: row.consultation_fee ?? current.consultation_fee,
           review_fee: row.review_fee ?? current.review_fee,
         };
@@ -304,6 +306,26 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     void loadDoctorSuggestions();
     void loadRegistrationOps();
   }, []);
+
+  const filteredDoctorSuggestions = useMemo(() => {
+    if (!appointmentForm.department) return doctorSuggestions;
+    return doctorSuggestions.filter((name) => {
+      const info = doctorFeeMap[name];
+      return info?.department === appointmentForm.department;
+    });
+  }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
+
+  const resolveAppointmentFee = (doctorName: string, appointmentKind: string) => {
+    const selectedDoctor = doctorName.trim();
+    const selectedDoctorFees = selectedDoctor ? doctorFeeMap[selectedDoctor] : undefined;
+    if (selectedDoctorFees) {
+      if (appointmentKind === "follow_up" || appointmentKind === "review") {
+        return selectedDoctorFees.review_fee ?? selectedDoctorFees.consultation_fee ?? 0;
+      }
+      return selectedDoctorFees.consultation_fee ?? selectedDoctorFees.review_fee ?? 0;
+    }
+    return Number(appointmentForm.consultation_fee) || 0;
+  };
 
   useEffect(() => {
     apiFetch<{ configured?: boolean }>("/api/payments/razorpay/config")
@@ -501,14 +523,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       return;
     }
     const doctorName = appointmentForm.doctor_name.trim();
-    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee =
-    appointmentForm.appointment_kind === "Follow Up" ||
-    appointmentForm.appointment_kind === "Review"
-    ? selectedDoctorFees?.review_fee ??
-      (Number(appointmentForm.consultation_fee) || 0)
-    : selectedDoctorFees?.consultation_fee ??
-      (Number(appointmentForm.consultation_fee) || 0);
+    const consultationFee = resolveAppointmentFee(doctorName, appointmentForm.appointment_kind);
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
@@ -524,7 +539,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
           department: appointmentForm.department.trim() || undefined,
           doctor_name: appointmentForm.doctor_name.trim() || undefined,
           appointment_date: appointmentForm.appointment_date,
-          appointment_kind: appointmentForm.appointment_kind === "Follow Up" ? "follow_up" : appointmentForm.appointment_kind === "Review" ? "review" : "new",
+          appointment_kind: appointmentForm.appointment_kind || "new",
           notes: buildAppointmentNotes() || undefined,
           consultation_fee: consultationFee,
           payment_mode: appointmentForm.payment_mode || "cash",
@@ -568,15 +583,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       setNotice({ type: "warning", message: "Patient name and appointment date/time are required." });
       return;
     }
-    const doctorName = appointmentForm.doctor_name.trim();
-    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee =
-    appointmentForm.appointment_kind === "Follow Up" ||
-    appointmentForm.appointment_kind === "Review"
-    ? selectedDoctorFees?.review_fee ??
-      (Number(appointmentForm.consultation_fee) || 0)
-    : selectedDoctorFees?.consultation_fee ??
-      (Number(appointmentForm.consultation_fee) || 0);
+    const consultationFee = resolveAppointmentFee(appointmentForm.doctor_name.trim(), appointmentForm.appointment_kind);
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee must be greater than zero for Razorpay payment." });
       return;
@@ -589,14 +596,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       department: appointmentForm.department.trim() || undefined,
       doctor_name: appointmentForm.doctor_name.trim() || undefined,
       appointment_date: appointmentForm.appointment_date,
-      appointment_kind: appointmentForm.appointment_kind === "Follow Up" ? "follow_up" : appointmentForm.appointment_kind === "Review" ? "review" : "new",
-      notes: buildAppointmentNotes() || undefined,
-      consultation_fee: consultationFee,
-    };
-
-    setSavingAppointment(true);
-    try {
-      const order = await apiFetch<{
+        appointment_kind: appointmentForm.appointment_kind || "new",
         key_id: string;
         order_id: string;
         amount: number;
@@ -1220,7 +1220,27 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 Department
                 <Select
                   value={appointmentForm.department}
-                  onChange={(event) => setAppointmentForm((prev) => ({ ...prev, department: event.target.value }))}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const doctors = appointmentForm.department ? filteredDoctorSuggestions : [];
+                    setAppointmentForm((prev) => {
+                      const validDoctor = prev.doctor_name && doctors.includes(prev.doctor_name) ? prev.doctor_name : "";
+                      const selectedDoctor = validDoctor || (doctors.length === 1 ? doctors[0] : "");
+                      const schedule = selectedDoctor ? doctorFeeMap[selectedDoctor] : undefined;
+                      return {
+                        ...prev,
+                        department: value,
+                        doctor_name: selectedDoctor,
+                        consultation_fee: schedule
+                          ? String(
+                              prev.appointment_kind === "follow_up" || prev.appointment_kind === "review"
+                                ? schedule.review_fee ?? schedule.consultation_fee ?? ""
+                                : schedule.consultation_fee ?? schedule.review_fee ?? ""
+                            )
+                          : prev.consultation_fee,
+                      };
+                    });
+                  }}
                 >
                   <option value="">Select department</option>
                   {departments.map((department) => {
@@ -1234,12 +1254,27 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 Doctor
                 <Input
                   value={appointmentForm.doctor_name}
-                  onChange={(event) => setAppointmentForm((prev) => ({ ...prev, doctor_name: event.target.value }))}
+                  onChange={(event) => {
+                    const doctor = event.target.value;
+                    const schedule = doctorFeeMap[doctor.trim()];
+                    setAppointmentForm((prev) => ({
+                      ...prev,
+                      doctor_name: doctor,
+                      department: schedule?.department || prev.department,
+                      consultation_fee: schedule
+                        ? String(
+                            prev.appointment_kind === "follow_up" || prev.appointment_kind === "review"
+                              ? schedule.review_fee ?? schedule.consultation_fee ?? ""
+                              : schedule.consultation_fee ?? schedule.review_fee ?? ""
+                          )
+                        : prev.consultation_fee,
+                    }));
+                  }}
                   list="registration-doctors"
                   placeholder="Type doctor name (guest allowed)"
                 />
                 <datalist id="registration-doctors">
-                  {doctorSuggestions.map((doctor) => <option key={doctor} value={doctor} />)}
+                  {filteredDoctorSuggestions.map((doctor) => <option key={doctor} value={doctor} />)}
                 </datalist>
               </Label>
               <Label>
@@ -1275,7 +1310,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
-                BP
+                Blood Pressure (Sys/Dia)
                 <Input value={appointmentForm.bp} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, bp: event.target.value }))} placeholder="120/80" />
               </Label>
               <Label>

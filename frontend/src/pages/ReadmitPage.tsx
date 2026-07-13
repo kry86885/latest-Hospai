@@ -25,6 +25,13 @@ type Props = {
   ocrLanguage: string;
 };
 
+type DoctorSchedule = {
+  doctor_name?: string | null;
+  department?: string | null;
+  consultation_fee?: number | null;
+  review_fee?: number | null;
+};
+
 type OcrResultMap = Record<string, { text?: string; file?: File }>;
 
 const IMAGE_NAME_PATTERN = /\.(png|jpe?g|webp|bmp|gif|tiff?|heic|heif)$/i;
@@ -97,7 +104,7 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
   const [doctorName, setDoctorName] = useState("");
   const [doctorDepartment, setDoctorDepartment] = useState("");
   const [reviewFee, setReviewFee] = useState("");
-  const [doctorOptions, setDoctorOptions] = useState<{ doctor_name?: string; department?: string }[]>([]);
+  const [doctorSchedules, setDoctorSchedules] = useState<DoctorSchedule[]>([]);
   const [docFiles, setDocFiles] = useState<Record<string, File>>({});
   const [ocrResults, setOcrResults] = useState<OcrResultMap>({});
   const [ocrStatus, setOcrStatus] = useState<Record<string, string>>({});
@@ -126,10 +133,10 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     };
     const loadDoctorSchedules = async () => {
       try {
-        const data = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null }[] }>('/api/op/doctor-schedules');
-        setDoctorOptions(data.schedules || []);
+        const data = await apiFetch<{ schedules?: DoctorSchedule[] }>('/api/op/doctor-schedules');
+        setDoctorSchedules(data.schedules || []);
       } catch {
-        setDoctorOptions([]);
+        setDoctorSchedules([]);
       }
     };
     void loadPatients();
@@ -165,6 +172,43 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
         );
       })
     : patients;
+
+  const doctorNames = useMemo(() => {
+    const unique = new Set<string>();
+    doctorSchedules.forEach((schedule) => {
+      const name = String(schedule.doctor_name || "").trim();
+      if (name) unique.add(name);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [doctorSchedules]);
+
+  const departmentNames = useMemo(() => {
+    const unique = new Set<string>();
+    doctorSchedules.forEach((schedule) => {
+      const department = String(schedule.department || "").trim();
+      if (department) unique.add(department);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [doctorSchedules]);
+
+  const getDoctorScheduleForName = (name: string) => {
+    const normalized = String(name).trim().toLowerCase();
+    return doctorSchedules.find((schedule) => String(schedule.doctor_name || "").trim().toLowerCase() === normalized);
+  };
+
+  const getDoctorsForDepartment = (department: string) => {
+    const normalized = String(department).trim().toLowerCase();
+    return doctorSchedules
+      .filter((schedule) => String(schedule.department || "").trim().toLowerCase() === normalized)
+      .map((schedule) => String(schedule.doctor_name || "").trim())
+      .filter(Boolean);
+  };
+
+  const getReviewFeeForDoctor = (name: string) => {
+    const schedule = getDoctorScheduleForName(name);
+    if (!schedule) return undefined;
+    return schedule.review_fee ?? schedule.consultation_fee ?? undefined;
+  };
 
   const previousDocumentGroups = useMemo(() => {
     const sorted = [...previousDocuments].sort((a, b) => getTimestamp(b.created_at) - getTimestamp(a.created_at));
@@ -484,55 +528,64 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                           Phone
                           <Input value={profileUpdates.phone} onChange={handleProfileChange("phone")} />
                         </Label>
-                        <Label>
-                          Doctor Name
-                          <Input
-                            value={doctorName}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setDoctorName(value);
-                              const match = doctorOptions.find((option) => (option.doctor_name || "").toLowerCase() === value.toLowerCase());
-                              if (match) {
-                                setDoctorDepartment(match.department || "");
-                              } else if (!value.trim()) {
-                                setDoctorDepartment("");
-                              }
-                            }}
-                            list="doctor-suggestions"
-                            placeholder="Dr. Name"
-                            aria-label="Doctor name"
-                          />
-                        </Label>
-                        <Label>
-                          Doctor Department
-                          <Input
-                            value={doctorDepartment}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setDoctorDepartment(value);
-                              const match = doctorOptions.find((option) => (option.department || "").toLowerCase() === value.toLowerCase());
-                              if (match) {
-                                setDoctorName(match.doctor_name || "");
-                              } else if (!value.trim()) {
-                                setDoctorName("");
-                              }
-                            }}
-                            list="department-suggestions"
-                            placeholder="Department"
-                            aria-label="Doctor department"
-                          />
-                        </Label>
-                        <Label>
-                          Review Fee
-                          <Input
-                            type="number"
-                            min={0}
-                            value={reviewFee}
-                            onChange={(event) => setReviewFee(event.target.value)}
-                            placeholder="0"
-                            aria-label="Review fee"
-                          />
-                        </Label>
+                                        <Label>
+                        Doctor Name
+                        <Input
+                          value={doctorName}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            const match = getDoctorScheduleForName(value);
+                            setDoctorName(value);
+                            if (match) {
+                              setDoctorDepartment(match.department || "");
+                              setReviewFee(String(getReviewFeeForDoctor(value) ?? ""));
+                            } else if (!value.trim()) {
+                              setDoctorDepartment("");
+                              setReviewFee("");
+                            }
+                          }}
+                          list="doctor-suggestions"
+                          placeholder="Dr. Name"
+                          aria-label="Doctor name"
+                        />
+                        <datalist id="doctor-suggestions">
+                          {doctorNames.map((name) => <option key={name} value={name} />)}
+                        </datalist>
+                      </Label>
+                      <Label>
+                        Doctor Department
+                        <Input
+                          value={doctorDepartment}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            const doctors = getDoctorsForDepartment(value);
+                            const normalizedDoctorName = String(doctorName).trim();
+                            const validDoctor = normalizedDoctorName && doctors.includes(normalizedDoctorName) ? normalizedDoctorName : "";
+                            const selectedDoctor = validDoctor || (doctors.length === 1 ? doctors[0] : "");
+                            setDoctorDepartment(value);
+                            setDoctorName(selectedDoctor);
+                            setReviewFee(selectedDoctor ? String(getReviewFeeForDoctor(selectedDoctor) ?? "") : "");
+                          }}
+                          list="department-suggestions"
+                          placeholder="Department"
+                          aria-label="Doctor department"
+                        />
+                        <datalist id="department-suggestions">
+                          {departmentNames.map((department) => <option key={department} value={department} />)}
+                        </datalist>
+                      </Label>
+                      <Label>
+                        Review Fee
+                        <Input
+                          type="number"
+                          min={0}
+                          value={reviewFee}
+                          onChange={(event) => setReviewFee(event.target.value)}
+                          placeholder="0"
+                          aria-label="Review fee"
+                          readOnly={Boolean(getDoctorScheduleForName(doctorName))}
+                        />
+                      </Label>
                         <Label>
                           Gender
                           <Select value={profileUpdates.gender} onChange={handleProfileChange("gender")}>

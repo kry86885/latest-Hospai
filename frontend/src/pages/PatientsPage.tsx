@@ -116,6 +116,20 @@ export default function PatientsPage({
   languages,
   refreshToken,
 }: Props) {
+  const handlePrintLatestCertificate = async (patientId: string) => {
+    try {
+      const data = await apiFetch<{ certificates?: Certificate[] }>(`/api/patients/${patientId}/certificates`);
+      const certificate = data.certificates?.[0];
+      if (!certificate) {
+        setNotice({ type: "warning", message: "No certificates found for this patient." });
+        return;
+      }
+      const html = `<!doctype html><html><head><title>${certificate.title || "Certificate"}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111827}.certificate{max-width:800px;margin:auto;border:1px solid #d1d5db;padding:24px;border-radius:8px}.certificate h1{margin-top:0;font-size:24px}.meta{margin-bottom:12px;color:#475569}.certificate-body{white-space:pre-wrap;margin-top:16px}</style></head><body><div class="certificate"><h1>${certificate.title || "Certificate"}</h1><div class="meta">Type: ${String(certificate.certificate_type || "").replace(/_/g, " ")}</div>${certificate.admission_id ? `<div class="meta">Admission: #${certificate.admission_id}</div>` : ""}${certificate.issued_by ? `<div class="meta">Issued by: ${certificate.issued_by}</div>` : ""}${certificate.created_at ? `<div class="meta">Created at: ${formatDateTimeIST(certificate.created_at)}</div>` : ""}<div class="certificate-body">${certificate.body ? String(certificate.body).replace(/</g, "&lt;").replace(/>/g, "&gt;") : ""}</div></div></body></html>`;
+      printViaIframe(html);
+    } catch (error) {
+      reportError(setNotice, error as { message?: string; status?: number }, "Unable to load patient certificates.");
+    }
+  };
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deletingPatient, setDeletingPatient] = useState(false);
   const [query, setQuery] = useState("");
@@ -274,6 +288,9 @@ export default function PatientsPage({
                   <TableCell className="row-actions">
                     <Button variant="ghost" size="sm" onClick={() => onSelect(expanded ? null : patient)}>
                       {expanded ? "Hide" : "View"}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => void handlePrintLatestCertificate(patient.patient_id)}>
+                      Print Certificate
                     </Button>
                   </TableCell>
                 </TableRow>
