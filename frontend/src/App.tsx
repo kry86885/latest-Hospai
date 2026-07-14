@@ -208,6 +208,23 @@ function App() {
   const isAdminRoutePath = typeof window !== "undefined" && window.location.pathname === "/admin";
   const isPlatformAdminRoute = typeof window !== "undefined" && window.location.pathname === "/platform-admin";
   const [user, setUser] = useState<User | null>(null);
+    // Ensure required asterisks are visually prominent across the app
+    useEffect(() => {
+      try {
+        const labels = Array.from(document.querySelectorAll("label"));
+        labels.forEach((label) => {
+          // Skip labels already containing a styled span
+          if (label.querySelector(".required-star")) return;
+          const text = label.textContent || "";
+          if (text.includes("*")) {
+            // Replace raw '*' characters with a styled span
+            label.innerHTML = label.innerHTML.replace(/\*/g, '<span class="required-star">*</span>');
+          }
+        });
+      } catch {
+        // silent
+      }
+    }, []);
   const getPageFromUrl = () => {
     if (typeof window === "undefined") return "dashboard";
     const params = new URLSearchParams(window.location.search);

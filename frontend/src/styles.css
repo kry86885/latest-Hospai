@@ -96,6 +96,11 @@ label {
   color: hsl(var(--secondary-foreground));
 }
 
+/* styled required star injected by App.tsx */
+.required-star { color: #dc2626; margin-left: 0.12rem; font-weight: 700; }
+
+.share-link-input { min-width: 420px; }
+
 input,
 select,
 textarea {

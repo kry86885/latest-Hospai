@@ -83,7 +83,14 @@ export async function shareOrDownloadExport({ blob, filename, title, text }: Sha
     });
     if (response.ok) {
       const data = await response.json();
-      shareUrl = data.share_url;
+      // Prefer share URL on same origin as the app so shared links work externally
+      const returned = String(data.share_url || "");
+      const tokenMatch = returned.match(/\/api\/share\/view\/([^\/?#]+)/);
+      if (tokenMatch && typeof window !== "undefined" && window.location && window.location.origin) {
+        shareUrl = `${window.location.origin}/api/share/view/${tokenMatch[1]}`;
+      } else {
+        shareUrl = returned;
+      }
     }
   } catch (error) {
     console.error("Failed to upload report for sharing:", error);

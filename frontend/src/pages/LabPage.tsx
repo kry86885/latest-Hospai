@@ -127,6 +127,29 @@ export default function LabPage({ setNotice }: Props) {
   const [reportDeliveryMode, setReportDeliveryMode] = useState("");
   const [reportDeliveryDate, setReportDeliveryDate] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [doctorSchedules, setDoctorSchedules] = useState<Array<{ doctor_name?: string | null; department?: string | null }>>([]);
+
+  useEffect(() => {
+    const loadDeps = async () => {
+      try {
+        const data = await apiFetch<{ departments?: { id: number; department_name?: string }[] }>("/api/registration/departments");
+        setDepartments((data.departments || []).map((d) => (d.department_name || "").trim()).filter(Boolean));
+      } catch {
+        setDepartments([]);
+      }
+    };
+    const loadDoctors = async () => {
+      try {
+        const data = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null }[] }>("/api/op/doctor-schedules");
+        setDoctorSchedules(data.schedules || []);
+      } catch {
+        setDoctorSchedules([]);
+      }
+    };
+    void loadDeps();
+    void loadDoctors();
+  }, []);
   
   // Payment & Billing Information
   const [billDate, setBillDate] = useState("");
@@ -190,6 +213,19 @@ export default function LabPage({ setNotice }: Props) {
       setPatientName("");
       setNotice({ type: "error", message: "Unable to auto-fill patient details." });
     }
+  };
+
+  const doctorsForDepartment = (dept: string) => {
+    const normalized = String(dept).trim().toLowerCase();
+    return doctorSchedules
+      .filter((s) => String(s.department || "").trim().toLowerCase() === normalized)
+      .map((s) => String(s.doctor_name || "").trim())
+      .filter(Boolean);
+  };
+
+  const getScheduleForDoctor = (name: string) => {
+    const normalized = String(name).trim().toLowerCase();
+    return doctorSchedules.find((s) => String(s.doctor_name || "").trim().toLowerCase() === normalized);
   };
 
   const addBlankItem = () => {
@@ -1039,22 +1075,38 @@ export default function LabPage({ setNotice }: Props) {
             </div>
 
             <div className="lab-field">
-              <label>Department</label>
-              <Input 
+              <label>Department *</label>
+              <Select
                 value={department}
-                onChange={(event) => setDepartment(event.target.value)}
-                placeholder="e.g., Pathology"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDepartment(value);
+                  const doctors = doctorsForDepartment(value);
+                  if (doctors.length === 1) setDoctorName(doctors[0]);
+                  else setDoctorName("");
+                }}
                 aria-label="Department"
-              />
+              >
+                <option value="">Select Department</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </Select>
             </div>
             <div className="lab-field">
               <label>Doctor *</label>
-              <Input 
-                value={doctorName} 
-                onChange={(event) => setDoctorName(event.target.value)} 
-                placeholder="Referring doctor name" 
-                aria-label="Doctor name" 
-              />
+              <Select
+                value={doctorName}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDoctorName(value);
+                  const schedule = getScheduleForDoctor(value);
+                  if (schedule?.department) setDepartment(schedule.department || "");
+                }}
+                aria-label="Doctor name"
+              >
+                <option value="">Select Doctor</option>
+                {(department ? doctorsForDepartment(department) : doctorSchedules.map((s) => String(s.doctor_name || "")).filter(Boolean))
+                  .map((dn) => <option key={dn} value={dn}>{dn}</option>)}
+              </Select>
             </div>
             <div className="lab-field">
               <label>Report Delivery Date</label>
