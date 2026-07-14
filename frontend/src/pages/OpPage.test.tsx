@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { fireEvent } from "@testing-library/react";
 import OpPage from "./OpPage";
 
 function flush() {
@@ -62,6 +63,14 @@ describe("OpPage", () => {
           ],
         });
       }
+      if (requestUrl.includes("/api/registration/departments")) {
+        return jsonResponse({
+          departments: [
+            { id: 1, department_name: "Cardiology" },
+            { id: 2, department_name: "Pediatrics" },
+          ],
+        });
+      }
       return jsonResponse({});
     }) as any;
 
@@ -77,9 +86,83 @@ describe("OpPage", () => {
     });
 
     expect(container.textContent).toContain("OP Desk");
+    expect(container.textContent).toContain("Manage Departments");
+    expect(container.textContent).toContain("Cardiology");
+    expect(container.textContent).toContain("Pediatrics");
     expect(container.textContent).toContain("Doctor Schedule");
     expect(container.textContent).not.toContain("Reminders Sent");
     expect(container.querySelector('input[aria-label="Doctor name"]')).toBeTruthy();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  test("allows adding a department and triggers reload", async () => {
+    let departments = [{ id: 1, department_name: "Cardiology" }];
+    const postMock = vi.fn().mockImplementation(() => jsonResponse({ success: true }));
+
+    global.fetch = vi.fn((url: string, options?: any) => {
+      const requestUrl = String(url);
+      const method = options?.method || "GET";
+
+      if (requestUrl.includes("/api/op/summary")) {
+        return jsonResponse({
+          total_appointments: 0,
+          follow_ups: 0,
+          active_queue: 0,
+          no_shows: 0,
+        });
+      }
+      if (requestUrl.includes("/api/op/doctor-schedules")) {
+        return jsonResponse({ schedules: [] });
+      }
+      if (requestUrl.includes("/api/appointments")) {
+        return jsonResponse({ appointments: [] });
+      }
+      if (requestUrl.includes("/api/registration/departments")) {
+        if (method === "POST") {
+          const body = JSON.parse(options.body);
+          departments.push({ id: departments.length + 1, department_name: body.department_name });
+          postMock();
+          return jsonResponse({ success: true });
+        }
+        return jsonResponse({ departments });
+      }
+      return jsonResponse({});
+    }) as any;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<OpPage setNotice={vi.fn()} canEdit={true} />);
+      await flush();
+      await flush();
+    });
+
+    expect(container.textContent).toContain("Cardiology");
+    expect(container.textContent).not.toContain("Neurology");
+
+    const input = container.querySelector('input[aria-label="Department name"]') as HTMLInputElement;
+    const form = input.closest("form") as HTMLFormElement;
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: "Neurology" } });
+      await flush();
+    });
+
+    await act(async () => {
+      fireEvent.submit(form);
+      await flush();
+      await flush();
+      await flush();
+    });
+
+    expect(postMock).toHaveBeenCalled();
+    expect(container.textContent).toContain("Neurology");
 
     act(() => {
       root.unmount();

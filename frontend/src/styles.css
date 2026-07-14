@@ -2092,6 +2092,14 @@ main {
 .required-marker {
   color: #b91c1c;
   font-weight: 800;
+  display: inline;
+  margin-left: 2px;
+  vertical-align: baseline;
+}
+
+.label-text {
+  display: inline-block;
+  line-height: 1.4;
 }
 
 .ui-checkbox {
@@ -5295,12 +5303,13 @@ main {
 }
 
 /* Stable HospAI logo: prevents stale/missing image cache from leaving an empty white box. */
+
 .brand-logo-img,
 .brand-logo-fallback {
   flex: 0 0 auto;
   display: inline-flex;
-  width: 42px;
-  height: 42px;
+  width: 64px;
+  height: 64px;
   align-items: center;
   justify-content: center;
   object-fit: contain;
@@ -5308,9 +5317,9 @@ main {
 }
 
 .brand-logo-fallback {
-  overflow: hidden;
-  border-radius: 8px;
-  background: #ffffff;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
 }
 
 .brand-logo-fallback svg {
@@ -5509,6 +5518,28 @@ main {
   height: 70px;
   object-fit: contain;
 }
+
+/* Increase header vertical rhythm so larger logo fits comfortably */
+.topbar {
+  align-items: center;
+  padding: 0.6rem 0.4rem 0.6rem;
+  min-height: 68px;
+}
+
+/* Ensure brand logo appears embedded: remove white box, border and shadow */
+.brand .brand-logo-img,
+.brand .brand-logo-fallback {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: auto !important;
+  height: 60px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.brand .brand-title { margin-left: 6px; }
 
 
 /* Production fix: OP/Registration department chips must stack vertically without affecting other chip lists. */
@@ -5758,3 +5789,41 @@ main {
   }
 }
 
+
+/* --- Vital Sign Input Wrappers --------------------------- */
+.vital-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.vital-input-wrap input {
+  padding-right: 3rem;
+  width: 100%;
+}
+.vital-unit-badge {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.03em;
+}
+.bp-split-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bp-split-wrap input {
+  flex: 1;
+  min-width: 0;
+}
+.bp-separator {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}

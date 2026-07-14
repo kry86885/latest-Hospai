@@ -22,7 +22,7 @@ export default function BrandLogo({ className = "brand-logo-img" }: BrandLogoPro
     return (
       <span className="brand-logo-fallback" aria-label="HospAI logo" role="img">
         <svg viewBox="0 0 64 64" focusable="false" aria-hidden="true">
-          <rect x="6" y="6" width="52" height="52" rx="14" fill="#ffffff" />
+          <rect x="6" y="6" width="52" height="52" rx="14" fill="none" />
           <rect x="10" y="10" width="44" height="44" rx="10" fill="#0f4f7a" />
           <path d="M22 17v30M42 17v30" stroke="#ffffff" strokeWidth="5.5" strokeLinecap="round" />
           <path d="M22 32h7l4-7 4 14 3-7h2" stroke="#8ee6d2" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
