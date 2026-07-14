@@ -162,8 +162,8 @@ export default function LabPage({ setNotice }: Props) {
   const [payingDueAmount, setPayingDueAmount] = useState("");
   const [billNotes, setBillNotes] = useState("");
 
-  const labTotal = useMemo(() => labItems.reduce((sum, item) => sum + item.rate * item.quantity, 0), [labItems]);
-  const diagnosticTotal = useMemo(() => diagnosticItems.reduce((sum, item) => sum + item.rate * item.quantity, 0), [diagnosticItems]);
+  const labTotal = useMemo(() => labItems.reduce((sum, item) => sum + Number(item.rate) * Number(item.quantity), 0), [labItems]);
+  const diagnosticTotal = useMemo(() => diagnosticItems.reduce((sum, item) => sum + Number(item.rate) * Number(item.quantity), 0), [diagnosticItems]);
   const subtotal = labTotal + diagnosticTotal;
   const discountAmount = (subtotal * Number(discountPercentage || 0)) / 100;
   const afterDiscount = subtotal - discountAmount;
@@ -798,7 +798,7 @@ export default function LabPage({ setNotice }: Props) {
       return;
     }
     const items = [...labItems.map((item) => ({ ...item, type: "Lab" })), ...diagnosticItems.map((item) => ({ ...item, type: "Diagnostic" }))]
-      .filter((item) => item.name.trim() && item.rate > 0 && item.quantity > 0);
+      .filter((item) => item.name.trim() && Number(item.rate) > 0 && Number(item.quantity) > 0);
     if (!items.length) {
       setNotice({ type: "warning", message: "Add at least one lab or diagnostic service with amount before printing." });
       return;
@@ -817,8 +817,8 @@ export default function LabPage({ setNotice }: Props) {
         <td>${safeText(item.name)}</td>
         <td>${safeText(item.category || "-")}</td>
         <td>${safeText(item.quantity)}</td>
-        <td>₹${safeText(formatAmount(item.rate))}</td>
-        <td>₹${safeText(formatAmount(item.rate * item.quantity))}</td>
+        <td>₹${safeText(formatAmount(Number(item.rate)))}</td>
+        <td>₹${safeText(formatAmount(Number(item.rate) * Number(item.quantity)))}</td>
       </tr>`).join("");
     const html = `
       <!doctype html>

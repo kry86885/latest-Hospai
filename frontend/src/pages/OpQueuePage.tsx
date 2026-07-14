@@ -124,7 +124,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
             appointmentId: Number(appointment.id),
             department: String(appointment.department || ""),
             doctor: String(appointment.doctor_name || ""),
-            priority: appointment.appointment_kind === "emergency" ? "High" : appointment.follow_up_for ? "Follow-up" : "Normal",
+            priority: (appointment.appointment_kind === "emergency" ? "High" : appointment.follow_up_for ? "Follow-up" : "Normal") as QueuePatient["priority"],
           };
         });
       const nextQueue = [...readmitEntries, ...mapped];
@@ -152,7 +152,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
       });
       setDepartmentOptions(Array.from(departmentNames).sort((a, b) => a.localeCompare(b)));
       setDoctorOptions(Array.from(doctorNames).sort((a, b) => a.localeCompare(b)));
-      setQueue(nextQueue);
+      setQueue(nextQueue as QueuePatient[]);
       setOpSummary(summaryData || null);
       setSelectedToken((current) => nextQueue.some((patient) => patient.token === current && patient.status !== "Completed") ? current : (nextQueue.find((patient) => patient.status === "In Queue") || nextQueue.find((patient) => patient.status !== "Completed") || nextQueue[0])?.token || "");
     } catch (error) {
@@ -267,7 +267,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
     }
     // mark as in consultation and set start time
     setQueue((current) => {
-      const next = current.map((p) => p.token === candidate.token ? { ...p, status: "In Consultation", consultationStartedAt: p.consultationStartedAt || new Date().toISOString() } : p);
+      const next = current.map((p) => p.token === candidate.token ? { ...p, status: "In Consultation" as QueuePatient["status"], consultationStartedAt: p.consultationStartedAt || new Date().toISOString() } : p);
       saveReadmitQueueState(next);
       return next;
     });

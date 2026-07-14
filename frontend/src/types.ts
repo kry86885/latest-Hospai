@@ -389,6 +389,7 @@ export interface SignupForm {
 }
 
 export interface PatientForm {
+  [key: string]: string | boolean | undefined;
   name: string;
   middle_name: string;
   last_name: string;

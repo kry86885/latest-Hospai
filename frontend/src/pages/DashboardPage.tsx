@@ -542,7 +542,7 @@ export default function DashboardPage({
   const ops = [
     { module: "Patient Registration", icon: "👤", ...registrationOps },
     { module: "Queue Management", icon: "🏥", ...queueOps },
-    { module: "Patient Journey", icon: "🗺️", count: stats.total_patients || 0, completed: stats.total_patients || 0, pending: 0 },
+    { module: "Patient Journey", icon: "🗺️", count: stats.total || 0, completed: stats.total || 0, pending: 0 },
     { module: "Doctor Consultation", icon: "🩺", ...consultationOps },
     { module: "Billing", icon: "🧾", ...billingOps },
     { module: "Payment Collection", icon: "💳", ...paymentCollectionOps },
@@ -883,7 +883,7 @@ export default function DashboardPage({
                   <p>{patient.patient_id} • {patientAgeGender(patient)}</p>
                   <p>{patient.phone || "Phone not added"}</p>
                 </div>
-                <Button variant="outline" onClick={() => setViewPatient(patient)}>View</Button>
+                <Button variant="secondary" onClick={() => setViewPatient(patient)}>View</Button>
               </div>
             ))}
           </div>
@@ -917,7 +917,7 @@ export default function DashboardPage({
               </div>
             ))}
             <div className="hosp-patient-detail-actions">
-              <Button variant="outline" onClick={() => setViewPatient(null)}>Back</Button>
+              <Button variant="secondary" onClick={() => setViewPatient(null)}>Back</Button>
               <Button onClick={() => { setTodayPatientsOpen(false); setViewPatient(null); go("patients"); }}>Open Patient Module</Button>
             </div>
           </div>

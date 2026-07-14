@@ -1262,8 +1262,15 @@ function PatientDetail({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => void handlePrintLatestCertificate(selectedPatient?.patient_id || "")}
-              disabled={!selectedPatient}
+              onClick={() => {
+                const latest = certificates[0];
+                if (latest) {
+                  handlePrintCertificate(latest);
+                } else {
+                  setNotice({ type: "warning", message: "No certificates found for this patient." });
+                }
+              }}
+              disabled={!patient || certificates.length === 0}
             >
               Print Latest
             </Button>
@@ -1312,8 +1319,15 @@ function PatientDetail({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => void handlePrintLatestCertificate(selectedPatient?.patient_id || "")}
-                    disabled={!selectedPatient}
+                    onClick={() => {
+                      const latest = certificates[0];
+                      if (latest) {
+                        handlePrintCertificate(latest);
+                      } else {
+                        setNotice({ type: "warning", message: "No certificates found for this patient." });
+                      }
+                    }}
+                    disabled={!patient || certificates.length === 0}
                   >
                     Print Latest
                   </Button>

@@ -713,7 +713,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
       const normalized = query.toLowerCase();
       const patient =
         results.find((item) => {
-          const fields = [item.patient_id, item.phone, item.aadhaar_number, `${item.name || ""} ${item.middle_name || ""} ${item.last_name || ""}`];
+          const fields = [item.patient_id, item.phone, (item as any).aadhaar_number, `${item.name || ""} ${item.middle_name || ""} ${item.last_name || ""}`];
           return fields.some((value) => String(value || "").toLowerCase() === normalized || String(value || "").slice(-4) === query);
         }) || results[0];
       if (!patient) {
