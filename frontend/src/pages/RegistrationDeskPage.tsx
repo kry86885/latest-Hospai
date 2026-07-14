@@ -400,7 +400,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       }
       const seenPatients = new Set<string>();
       results = results.filter((patient) => {
-        const key = patient.patient_id || patient.phone || patient.aadhaar_number || patientFullName(patient);
+        const key = patient.patient_id || patient.phone || (patient as any).aadhaar_number || patientFullName(patient);
         if (!key || seenPatients.has(key)) return false;
         seenPatients.add(key);
         return true;
@@ -526,18 +526,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       return;
     }
     const doctorName = appointmentForm.doctor_name.trim();
-<<<<<<< HEAD
-    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee =
-    appointmentForm.appointment_kind === "Follow Up" ||
-    appointmentForm.appointment_kind === "Review"
-    ? selectedDoctorFees?.review_fee ??
-      (Number(appointmentForm.consultation_fee) || 0)
-    : selectedDoctorFees?.consultation_fee ??
-      (Number(appointmentForm.consultation_fee) || 0);
-=======
     const consultationFee = resolveAppointmentFee(doctorName, appointmentForm.appointment_kind);
->>>>>>> recovery-latest-ui
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
@@ -599,19 +588,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       setNotice({ type: "warning", message: "Patient name and appointment date/time are required." });
       return;
     }
-<<<<<<< HEAD
-    const doctorName = appointmentForm.doctor_name.trim();
-    const selectedDoctorFees = doctorName ? doctorFeeMap[doctorName] : undefined;
-    const followUpFee =
-    appointmentForm.appointment_kind === "Follow Up" ||
-    appointmentForm.appointment_kind === "Review"
-    ? selectedDoctorFees?.review_fee ??
-      (Number(appointmentForm.consultation_fee) || 0)
-    : selectedDoctorFees?.consultation_fee ??
-      (Number(appointmentForm.consultation_fee) || 0);
-=======
     const consultationFee = resolveAppointmentFee(appointmentForm.doctor_name.trim(), appointmentForm.appointment_kind);
->>>>>>> recovery-latest-ui
     if (consultationFee <= 0) {
       setNotice({ type: "warning", message: "Consultation fee must be greater than zero for Razorpay payment." });
       return;
@@ -835,7 +812,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const parseConsentNotes = (notes?: string) => {
     if (!notes) return null;
     try {
-      return JSON.parse(notes) as { doctor_name?: string; document_reference?: string };
+      return JSON.parse(notes) as { doctor_name?: string; document_reference?: string; mobile?: string };
     } catch {
       return { document_reference: notes };
     }
@@ -845,9 +822,9 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     const seen = new Set<string>();
     return insuranceChecks.filter((check) => {
       const key = [
-        check.patient_id || "",
+        (check as any).patient_id || "",
         check.patient_name || "",
-        check.policy_number || "",
+        (check as any).policy_number || "",
         (check as any).claim_id || "",
         check.insurer_name || "",
       ].join("|").toLowerCase();
@@ -1355,55 +1332,12 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 />
               </Label>
               <Label>
-<<<<<<< HEAD
                 Blood Pressure
                 <div className="bp-split-wrap">
                   <Input value={bpSys} onChange={(event) => { setBpSys(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${event.target.value}/${bpDia}` })); }} placeholder="120" inputMode="numeric" />
                   <span className="bp-separator">/</span>
                   <Input value={bpDia} onChange={(event) => { setBpDia(event.target.value); setAppointmentForm((prev) => ({ ...prev, bp: `${bpSys}/${event.target.value}` })); }} placeholder="80" inputMode="numeric" />
                 </div>
-=======
-                Blood Pressure (Sys/Dia)
-                <Input
-                  id="registration-bp-input"
-                  value={appointmentForm.bp}
-                  onChange={(event) => setAppointmentForm((prev) => ({ ...prev, bp: event.target.value }))}
-                  placeholder="  /"
-                  onFocus={(event) => {
-                    const el = event.target as HTMLInputElement;
-                    if (!el.value) {
-                      // show visual cue but don't force user data until they type
-                      // keep state empty until they type; leave placeholder visible
-                      setTimeout(() => {
-                        try { el.setSelectionRange(0, 0); } catch { /* ignore */ }
-                      }, 0);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      const el = event.target as HTMLInputElement;
-                      const val = el.value || "";
-                      const slashIndex = val.indexOf("/");
-                      if (slashIndex >= 0) {
-                        // move caret after the slash
-                        const pos = slashIndex + 1;
-                        try { el.setSelectionRange(pos, pos); } catch { /* ignore */ }
-                        event.preventDefault();
-                      } else if (!val) {
-                        // if empty, insert a visual slash and move caret after it
-                        setAppointmentForm((prev) => ({ ...prev, bp: " / " }));
-                        setTimeout(() => {
-                          const e2 = document.getElementById("registration-bp-input") as HTMLInputElement | null;
-                          if (e2) {
-                            try { e2.setSelectionRange(2, 2); } catch { /* ignore */ }
-                          }
-                        }, 0);
-                        event.preventDefault();
-                      }
-                    }
-                  }}
-                />
->>>>>>> 6895fbe (enhanced logo & Patients)
               </Label>
               <Label>
                 Temperature
@@ -1420,16 +1354,11 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 </div>
               </Label>
               <Label>
-<<<<<<< HEAD
                 SpO2
                 <div className="vital-input-wrap">
                   <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98" inputMode="numeric" />
                   <span className="vital-unit-badge">%</span>
                 </div>
-=======
-                SPO2
-                <Input value={appointmentForm.spo2} onChange={(event) => setAppointmentForm((prev) => ({ ...prev, spo2: event.target.value }))} placeholder="98" />
->>>>>>> 6895fbe (enhanced logo & Patients)
               </Label>
               <Label>
                 Weight (kg)
