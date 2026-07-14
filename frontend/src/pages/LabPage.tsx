@@ -168,11 +168,22 @@ export default function LabPage({ setNotice }: Props) {
   const discountAmount = (subtotal * Number(discountPercentage || 0)) / 100;
   const afterDiscount = subtotal - discountAmount;
   const taxAmount = (afterDiscount * Number(taxPercentage || 0)) / 100;
-  const grandTotal = afterDiscount + taxAmount;
+  // For new bills, grandTotal is computed from form; for existing records, use stored net_amount
+  const formGrandTotal = afterDiscount + taxAmount;
+  const existingRecordNetAmount = selectedRecord
+    ? Math.max(
+        Number(selectedRecord.amount || 0)
+        - Number(selectedRecord.discount_amount || 0)
+        + Number(selectedRecord.tax_amount || 0),
+        0
+      )
+    : 0;
+  const grandTotal = selectedRecord ? existingRecordNetAmount : formGrandTotal;
   const totalPaidAfterUpdate = selectedRecord
     ? Number(paidAmount || 0) + Number(payingDueAmount || 0)
     : Number(paidAmount || 0);
   const balanceAmount = grandTotal - totalPaidAfterUpdate;
+
 
   const loadDiagnostics = async () => {
     setLoadingRecords(true);
@@ -548,10 +559,47 @@ export default function LabPage({ setNotice }: Props) {
     setSavingBill(true);
     try {
       if (selectedRecord) {
-        const payload = payloads[0];
+        // For existing records, preserve the original amount/discount/tax so the backend
+        // recalculates the same net_amount and correctly sets due_amount = net_amount - paid.
+        const existingNetAmount = Math.max(
+          Number(selectedRecord.amount || 0)
+          - Number(selectedRecord.discount_amount || 0)
+          + Number(selectedRecord.tax_amount || 0),
+          0
+        );
+        const clampedPaid = Math.min(paid, existingNetAmount);
         await apiFetch(`/api/lab/diagnostics/${selectedRecord.id}`, {
           method: "PUT",
-          body: JSON.stringify({ ...payload, paid_amount: paid }),
+          body: JSON.stringify({
+            // Preserve original billing fields unchanged
+            amount: selectedRecord.amount,
+            discount_percentage: selectedRecord.discount_percentage ?? 0,
+            discount_amount: selectedRecord.discount_amount ?? 0,
+            tax_percentage: selectedRecord.tax_percentage ?? 0,
+            tax_amount: selectedRecord.tax_amount ?? 0,
+            // Update payment fields
+            paid_amount: clampedPaid,
+            payment_mode: paymentMode || selectedRecord.payment_mode,
+            transaction_id: transactionId.trim() || selectedRecord.transaction_id,
+            bill_date: billDate || selectedRecord.bill_date,
+            due_date: dueDate || selectedRecord.due_date,
+            // Preserve record identity fields
+            patient_id: selectedRecord.patient_id,
+            patient_name: selectedRecord.patient_name,
+            age: selectedRecord.age,
+            gender: selectedRecord.gender,
+            test_name: selectedRecord.test_name,
+            invoice_no: selectedRecord.invoice_no,
+            doctor_name: selectedRecord.doctor_name,
+            department: selectedRecord.department,
+            visit_type: selectedRecord.visit_type,
+            visit_id: selectedRecord.visit_id,
+            sample_barcode: selectedRecord.sample_barcode,
+            order_status: selectedRecord.order_status,
+            report_delivery_mode: reportDeliveryMode || selectedRecord.report_delivery_mode,
+            report_delivery_date: reportDeliveryDate || selectedRecord.report_delivery_date,
+            remarks: remarks.trim() || selectedRecord.remarks,
+          }),
         });
         setSelectedRecord(null);
         setLabItems([]);
@@ -583,6 +631,7 @@ export default function LabPage({ setNotice }: Props) {
       setSavingBill(false);
     }
   };
+
 
 
   const printSelectedInvoices = () => {
