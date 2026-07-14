@@ -717,6 +717,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
           return fields.some((value) => String(value || "").toLowerCase() === normalized || String(value || "").slice(-4) === query);
         }) || results[0];
       if (!patient) {
+
         setNotice({ type: "warning", message: "No patient found for the entered search." });
         return;
       }
