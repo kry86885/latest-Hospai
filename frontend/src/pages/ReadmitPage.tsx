@@ -36,6 +36,7 @@ type OcrResultMap = Record<string, { text?: string; file?: File }>;
 
 const IMAGE_NAME_PATTERN = /\.(png|jpe?g|webp|bmp|gif|tiff?|heic|heif)$/i;
 const ACTIVE_READMIT_STATUSES = new Set(["In Queue", "In Consultation", "Yet to Come"]);
+const FOLLOW_UP_PAYMENT_MODES = ["Cash", "UPI", "Credit Card", "Debit Card", "Net Banking", "Cheque", "Wallet", "Insurance"];
 
 function getStoredReadmitQueue() {
   try {
@@ -104,6 +105,8 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
   const [doctorName, setDoctorName] = useState("");
   const [doctorDepartment, setDoctorDepartment] = useState("");
   const [reviewFee, setReviewFee] = useState("");
+  const [paymentMode, setPaymentMode] = useState("");
+  const [readmitValidationErrors, setReadmitValidationErrors] = useState<Record<string, string>>({});
   const [doctorSchedules, setDoctorSchedules] = useState<DoctorSchedule[]>([]);
   const [docFiles, setDocFiles] = useState<Record<string, File>>({});
   const [ocrResults, setOcrResults] = useState<OcrResultMap>({});
@@ -119,7 +122,7 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     phone: patient?.phone || "",
     symptoms: patient?.symptoms || "",
     gender: patient?.gender || "Female",
-    pregnant: patient?.pregnant === 1 || patient?.pregnant === true,
+    pregnant: patient?.gender === "Female" && (patient?.pregnant === 1 || patient?.pregnant === true),
   });
 
   useEffect(() => {
@@ -243,6 +246,8 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
     setDoctorName("");
     setDoctorDepartment("");
     setReviewFee("");
+    setPaymentMode("");
+    setReadmitValidationErrors({});
     setDocFiles({});
     setOcrResults({});
     setOcrStatus({});
@@ -330,7 +335,13 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
 
   const handleProfileChange = (field: keyof ProfileUpdates) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = field === "pregnant" ? (event.target as HTMLInputElement).checked : event.target.value;
-    setProfileUpdates((prev) => ({ ...prev, [field]: value }));
+    setProfileUpdates((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "gender" && event.target.value !== "Female") {
+        next.pregnant = false;
+      }
+      return next;
+    });
   };
 
   const printConfirmation = () => {
@@ -355,6 +366,7 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
             <div class="row"><strong>Doctor</strong><span>${doctorName || "-"}</span></div>
             <div class="row"><strong>Department</strong><span>${doctorDepartment || "-"}</span></div>
             <div class="row"><strong>Review Fee</strong><span>${reviewFee || "-"}</span></div>
+            <div class="row"><strong>Payment Mode</strong><span>${paymentMode || "-"}</span></div>
             <div class="row"><strong>Symptoms</strong><span>${profileUpdates.symptoms || "-"}</span></div>
             <div class="row"><strong>Notes</strong><span>${notes || "-"}</span></div>
           </div>
@@ -388,6 +400,22 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
       return;
     }
     setSubmitting(true);
+    const validationErrors: Record<string, string> = {};
+    const feeValue = String(reviewFee).trim();
+    if (!feeValue || Number.isNaN(Number(feeValue)) || Number(Number(feeValue)) <= 0) {
+      validationErrors.reviewFee = "Review Fee is required and must be a positive number.";
+    }
+    if (!paymentMode.trim()) {
+      validationErrors.paymentMode = "Payment Mode is required.";
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setReadmitValidationErrors(validationErrors);
+      setNotice({ type: "warning", message: "Please fill the required follow-up details before saving." });
+      setSubmitting(false);
+      return;
+    }
+    setReadmitValidationErrors({});
+
     try {
       const numberOrNull = (value: number | string) => {
         if (value === "" || value === null || value === undefined) return null;
@@ -423,6 +451,7 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
         mobile: profileUpdates.phone || activePatient.phone || activePatient.family_mobile || "",
         source: "readmit",
         admissionId: data.admission_id,
+        paymentMode: paymentMode || undefined,
         createdAt: new Date().toISOString(),
       };
       const storedQueue = getStoredReadmitQueue();
@@ -575,20 +604,54 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                         </datalist>
                       </Label>
                       <Label>
-                        Review Fee
+                        <span className="label-text">Review Fee <span className="required-marker">*</span></span>
                         <Input
                           type="number"
                           min={0}
                           value={reviewFee}
-                          onChange={(event) => setReviewFee(event.target.value)}
+                          onChange={(event) => {
+                            setReviewFee(event.target.value);
+                            if (readmitValidationErrors.reviewFee) {
+                              setReadmitValidationErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.reviewFee;
+                                return next;
+                              });
+                            }
+                          }}
                           placeholder="0"
                           aria-label="Review fee"
                           readOnly={Boolean(getDoctorScheduleForName(doctorName))}
                         />
+                        {readmitValidationErrors.reviewFee && <span className="field-error">{readmitValidationErrors.reviewFee}</span>}
                       </Label>
-                        <Label>
-                          Gender
-                          <Select value={profileUpdates.gender} onChange={handleProfileChange("gender")}>
+                      <Label>
+                        <span className="label-text">Payment Mode <span className="required-marker">*</span></span>
+                        <Select
+                          value={paymentMode}
+                          onChange={(event) => {
+                            setPaymentMode(event.target.value);
+                            if (readmitValidationErrors.paymentMode) {
+                              setReadmitValidationErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.paymentMode;
+                                return next;
+                              });
+                            }
+                          }}
+                        >
+                          <option value="">Select payment mode</option>
+                          {FOLLOW_UP_PAYMENT_MODES.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {mode}
+                            </option>
+                          ))}
+                        </Select>
+                        {readmitValidationErrors.paymentMode && <span className="field-error">{readmitValidationErrors.paymentMode}</span>}
+                      </Label>
+                      <Label>
+                        Gender
+                        <Select value={profileUpdates.gender} onChange={handleProfileChange("gender")}>
                             <option>Male</option>
                             <option>Female</option>
                             <option>Other</option>

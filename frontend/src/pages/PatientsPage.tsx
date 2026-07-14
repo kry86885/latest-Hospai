@@ -622,7 +622,7 @@ function PatientDetail({
       weight,
       height,
       gender: editForm.gender,
-      pregnant: editForm.pregnant,
+      pregnant: editForm.gender === "Female" ? editForm.pregnant : false,
       allergies: editForm.allergies.trim(),
       symptoms: editForm.symptoms.trim(),
       phone: editForm.phone.trim(),
@@ -1119,7 +1119,17 @@ function PatientDetail({
               <p className="muted">Age</p>
               <Input value={editForm.age} onChange={(event) => setEditForm({ ...editForm, age: event.target.value })} />
               <p className="muted">Gender</p>
-              <Select value={editForm.gender} onChange={(event) => setEditForm({ ...editForm, gender: event.target.value })}>
+              <Select
+                value={editForm.gender}
+                onChange={(event) => {
+                  const gender = event.target.value;
+                  setEditForm((current) => ({
+                    ...current,
+                    gender,
+                    pregnant: gender === "Female" ? current.pregnant : false,
+                  }));
+                }}
+              >
                 <option value="Female">Female</option>
                 <option value="Male">Male</option>
                 <option value="Other">Other</option>
@@ -1130,8 +1140,12 @@ function PatientDetail({
               <Input value={editForm.weight} onChange={(event) => setEditForm({ ...editForm, weight: event.target.value })} />
               <p className="muted">Height (cm)</p>
               <Input value={editForm.height} onChange={(event) => setEditForm({ ...editForm, height: event.target.value })} />
-              <p className="muted">Pregnant</p>
-              <Checkbox checked={editForm.pregnant} onChange={(event) => setEditForm({ ...editForm, pregnant: event.target.checked })} />
+              {editForm.gender === "Female" && (
+                <>
+                  <p className="muted">Pregnant</p>
+                  <Checkbox checked={editForm.pregnant} onChange={(event) => setEditForm({ ...editForm, pregnant: event.target.checked })} />
+                </>
+              )}
             </>
           ) : (
             <>
