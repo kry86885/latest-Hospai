@@ -3273,6 +3273,27 @@ main {
   overflow-wrap: anywhere;
 }
 
+.appointment-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.85rem;
+}
+
+.appointment-summary-table th,
+.appointment-summary-table td {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid hsl(var(--border));
+  text-align: left;
+  vertical-align: top;
+  min-width: 0;
+}
+
+.appointment-summary-table th {
+  background: #f8fafc;
+  color: hsl(var(--muted-foreground));
+  font-weight: 700;
+}
+
 .journey-timeline {
   display: grid;
   gap: 0.65rem;

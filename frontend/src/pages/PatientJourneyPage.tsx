@@ -70,6 +70,15 @@ type JourneyEvent = {
   amount?: number;
 };
 
+type JourneyAppointment = Appointment & {
+  patient_type?: string | null;
+  payment_mode?: string | null;
+  operator_name?: string | null;
+  chief_complaint?: string | null;
+  notes?: string | null;
+  consultation_fee?: number | null;
+};
+
 const money = (value: unknown) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const compactDate = (value?: string | null) => {
   if (!value) return "-";
@@ -117,7 +126,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<JourneyAppointment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -133,7 +142,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
     const invoiceDue = invoices.reduce((sum, row) => sum + Number(row.due_amount || 0), 0);
     const testBilled = diagnostics.reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const testPaid = diagnostics.reduce((sum, row) => sum + Number(row.paid_amount || 0), 0);
-    const testDue = diagnostics.reduce((sum, row) => sum + Number(row.due_amount || 0), 0);
     return {
       billed: invoiceBilled + testBilled,
       paid: invoicePaid + testPaid,
@@ -142,6 +150,12 @@ export default function PatientJourneyPage({ setNotice }: Props) {
       visits: appointments.length,
     };
   }, [appointments.length, diagnostics, invoices]);
+
+  const selectedAppointment = useMemo(() => {
+    return appointments
+      .slice()
+      .sort((a, b) => (new Date(b.appointment_date || "").getTime() || 0) - (new Date(a.appointment_date || "").getTime() || 0))[0] || null;
+  }, [appointments]);
 
   const timeline = useMemo<JourneyEvent[]>(() => {
     const events: JourneyEvent[] = [];
@@ -207,7 +221,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
     try {
       const patientId = patient.patient_id;
       const [appointmentData, invoiceData, diagnosticData, documentData, admissionData, bedsData] = await Promise.all([
-        apiFetch<{ appointments?: Appointment[] }>("/api/appointments"),
+        apiFetch<{ appointments?: JourneyAppointment[] }>("/api/appointments"),
         apiFetch<{ invoices?: Invoice[] }>(`/api/billing/invoices?patient_id=${encodeURIComponent(patientId)}`),
         apiFetch<{ diagnostics?: Diagnostic[] }>(`/api/lab/diagnostics?patient_id=${encodeURIComponent(patientId)}`),
         apiFetch<{ documents?: DocumentItem[] }>(`/api/patients/${encodeURIComponent(patientId)}/documents`),
@@ -235,62 +249,26 @@ export default function PatientJourneyPage({ setNotice }: Props) {
 
     const patientName = [selectedPatient.name, selectedPatient.middle_name, selectedPatient.last_name].filter(Boolean).join(" ").trim() || selectedPatient.patient_id;
     const printedAt = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-    const testRows = diagnostics.length
-      ? diagnostics.map((test) => `
+    const sortedAppointments = appointments
+      .slice()
+      .sort((a, b) => (new Date(b.appointment_date || "").getTime() || 0) - (new Date(a.appointment_date || "").getTime() || 0));
+    const appointmentRows = sortedAppointments.length
+      ? sortedAppointments.map((appointment) => `
           <tr>
-            <td>${safeText(compactDate(test.created_at))}</td>
-            <td>${safeText(test.test_name || "-")}</td>
-            <td>${safeText(test.doctor_name || "-")}</td>
-            <td>${safeText(money(test.amount))}</td>
-            <td>${safeText(money(test.paid_amount))}</td>
-            <td>${safeText(money(test.due_amount))}</td>
-            <td>${safeText(test.status || "-")}</td>
+            <td>${safeText(compactDate(appointment.appointment_date))}</td>
+            <td>${safeText(appointment.visit_type || "-")}</td>
+            <td>${safeText(appointment.appointment_kind || "-")}</td>
+            <td>${safeText(appointment.department || "-")}</td>
+            <td>${safeText(appointment.doctor_name || "-")}</td>
+            <td>${safeText(appointment.consultation_fee ? money(appointment.consultation_fee) : "-")}</td>
+            <td>${safeText(appointment.payment_mode || "-")}</td>
+            <td>${safeText(appointment.operator_name || "-")}</td>
+            <td>${safeText(appointment.chief_complaint || appointment.notes || "-")}</td>
           </tr>
         `).join("")
-      : printEmptyRow(7, "No lab/test billing found for this patient.");
-    const invoiceRows = invoices.length
-      ? invoices.map((invoice) => `
-          <tr>
-            <td>${safeText(compactDate(invoice.created_at))}</td>
-            <td>${safeText(invoice.invoice_no || invoice.id)}</td>
-            <td>${safeText(invoice.module || "-")}</td>
-            <td>${safeText(money(invoice.total_amount))}</td>
-            <td>${safeText(money(Number(invoice.paid_amount || 0) + Number(invoice.advance_amount || 0)))}</td>
-            <td>${safeText(money(invoice.due_amount))}</td>
-            <td>${safeText(invoice.payment_status || "-")}</td>
-          </tr>
-        `).join("")
-      : printEmptyRow(7, "No invoices found for this patient.");
-    const timelineRows = timeline.length
-      ? timeline.map((item, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${safeText(compactDate(item.date))}</td>
-            <td>${safeText(item.title)}</td>
-            <td>${safeText(item.detail)}${item.amount ? ` | Amount ${safeText(money(item.amount))}` : ""}</td>
-          </tr>
-        `).join("")
-      : printEmptyRow(4, "No journey events found yet.");
-    const dischargeRows = latestDischargeSummary
-      ? `
-          <div class="journey-print-grid">
-            ${printField("Admission Date", latestDischargeSummary.admission_date || "-")}
-            ${printField("Discharge Date", latestDischargeSummary.discharge_date || "-")}
-            ${printField("Status", latestDischargeSummary.status || "-")}
-            ${printField("Billing Clearance", latestDischargeSummary.billing_clearance || "-")}
-          </div>
-          <div class="journey-print-notes">
-            <strong>Final Diagnosis</strong>
-            <p>${safeText(latestDischargeSummary.final_diagnosis || "-")}</p>
-            <strong>Treatment Summary</strong>
-            <p>${safeText(latestDischargeSummary.treatment_summary || "-")}</p>
-            <strong>Discharge Medicines</strong>
-            <p>${safeText(latestDischargeSummary.discharge_medicines || "-")}</p>
-            <strong>Follow-up Plan</strong>
-            <p>${safeText(latestDischargeSummary.follow_up_plan || "-")}</p>
-          </div>
-        `
-      : `<div class="journey-print-empty-block">No discharge summary recorded for this patient.</div>`;
+      : printEmptyRow(9, "No appointment records found for this patient.");
+
+    const latestAppointment = sortedAppointments[0] || null;
     const html = `
       <!doctype html>
       <html>
@@ -324,7 +302,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
             .journey-print-logo { width: 56px; height: 56px; object-fit: contain; display: block; }
             .journey-print-brand-title { margin: 0 0 3px; font-size: 17px; font-weight: 800; color: #062f56; line-height: 1.1; }
             .journey-print-brand-line { margin: 1px 0; font-size: 10px; font-weight: 700; color: #062f56; line-height: 1.25; }
-            .journey-print-brand-unit { margin: 2px 0 0; font-size: 9px; color: #475569; line-height: 1.3; }
             .journey-print-title { text-align: right; color: #111827; }
             .journey-print-title h1 { margin: 0 0 5px; font-size: 16px; text-decoration: underline; color: #062f56; line-height: 1.2; }
             .journey-print-title p { margin: 2px 0; color: #475569; font-size: 10px; }
@@ -352,9 +329,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
             .journey-print-grid.three {
               grid-template-columns: repeat(3, minmax(0, 1fr));
             }
-            .journey-print-grid.four {
-              grid-template-columns: repeat(4, minmax(0, 1fr));
-            }
             .journey-print-field {
               min-height: 32px;
               padding: 6px 8px;
@@ -364,12 +338,10 @@ export default function PatientJourneyPage({ setNotice }: Props) {
             .journey-print-field:nth-child(2n) {
               border-right: 0;
             }
-            .journey-print-grid.three .journey-print-field:nth-child(2n),
-            .journey-print-grid.four .journey-print-field:nth-child(2n) {
+            .journey-print-grid.three .journey-print-field:nth-child(2n) {
               border-right: 1px solid #111827;
             }
-            .journey-print-grid.three .journey-print-field:nth-child(3n),
-            .journey-print-grid.four .journey-print-field:nth-child(4n) {
+            .journey-print-grid.three .journey-print-field:nth-child(3n) {
               border-right: 0;
             }
             .journey-print-field span {
@@ -389,6 +361,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
             .journey-print-table {
               width: 100%;
               border-collapse: collapse;
+              margin-top: 10px;
             }
             .journey-print-table th,
             .journey-print-table td {
@@ -409,16 +382,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
               letter-spacing: 0.05em;
               text-transform: uppercase;
             }
-            .journey-print-empty {
-              color: #64748b;
-              text-align: center !important;
-            }
-            .journey-print-empty-block {
-              padding: 10px 8px;
-              color: #64748b;
-              border-bottom: 1px solid #111827;
-              text-align: center;
-            }
             .journey-print-notes {
               padding: 8px;
               border-bottom: 1px solid #111827;
@@ -435,18 +398,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
               margin: 0 0 8px;
               white-space: pre-wrap;
             }
-            .journey-print-signatures {
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 18px;
-              margin-top: 22px;
-            }
-            .journey-print-signatures div {
-              padding-top: 22px;
-              border-top: 1px solid #111827;
-              text-align: center;
-              font-weight: 700;
-            }
           </style>
         </head>
         <body>
@@ -459,7 +410,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
                 <p class="journey-print-brand-line">DIAGNOSTICS</p>
               </div>
               <div class="journey-print-title">
-                <h1>Patient Journey Report</h1>
+                <h1>Patient Registration Summary</h1>
                 <p><strong>UHID:</strong> ${safeText(selectedPatient.patient_id)}</p>
                 <p><strong>Printed:</strong> ${safeText(printedAt)}</p>
               </div>
@@ -467,62 +418,55 @@ export default function PatientJourneyPage({ setNotice }: Props) {
 
             <section class="journey-print-section">
               <h2>Patient Information</h2>
-              <div class="journey-print-grid">
+              <div class="journey-print-grid three">
                 ${printField("Patient Name", patientName)}
                 ${printField("UHID / Patient ID", selectedPatient.patient_id)}
+                ${printField("Date of Birth", selectedPatient.dob || "-")}
+                ${printField("Age", selectedPatient.age || "-")}
+                ${printField("Gender", selectedPatient.gender || "-")}
+                ${printField("Marital Status", selectedPatient.marital_status || "-")}
                 ${printField("Mobile", selectedPatient.phone || "-")}
-                ${printField("Age / Gender", `${selectedPatient.age || "-"} / ${selectedPatient.gender || "-"}`)}
-                ${printField("Address", selectedPatient.address || "-")}
-                ${printField("Allergies", selectedPatient.allergies || "-")}
-                ${printField("Emergency Contact", `${selectedPatient.emergency_contact || "-"}${selectedPatient.emergency_relation ? ` (${selectedPatient.emergency_relation})` : ""}`)}
                 ${printField("Family Mobile", selectedPatient.family_mobile || "-")}
+                ${printField("Address", selectedPatient.address || "-")}
               </div>
             </section>
 
             <section class="journey-print-section">
-              <h2>Journey Summary</h2>
-              <div class="journey-print-grid four">
-                ${printField("Total Billed", money(totals.billed))}
-                ${printField("Total Paid", money(totals.paid))}
-                ${printField("Total Due", money(totals.due))}
-                ${printField("Visits / Tests", `${totals.visits} / ${totals.tests}`)}
+              <h2>Appointment Scheduling</h2>
+              <div class="journey-print-grid three">
+                ${printField("Appointment Date / Time", latestAppointment ? compactDate(latestAppointment.appointment_date) : "-")}
+                ${printField("Visit Type", latestAppointment?.visit_type || "-")}
+                ${printField("Appointment Kind", latestAppointment?.appointment_kind || "-")}
+                ${printField("Department", latestAppointment?.department || "-")}
+                ${printField("Doctor", latestAppointment?.doctor_name || "-")}
+                ${printField("Patient Type", latestAppointment?.patient_type || "-")}
+                ${printField("Consultation Fee", latestAppointment?.consultation_fee ? money(latestAppointment.consultation_fee) : "-")}
+                ${printField("Payment Mode", latestAppointment?.payment_mode || "-")}
+                ${printField("Operator", latestAppointment?.operator_name || "-")}
               </div>
-            </section>
-
-            <section class="journey-print-section">
-              <h2>Discharge Summary</h2>
-              ${dischargeRows}
-            </section>
-
-            <section class="journey-print-section">
-              <h2>Test-wise Payment Details</h2>
+              <div class="journey-print-notes">
+                <strong>Chief Complaint</strong>
+                <p>${safeText(latestAppointment?.chief_complaint || selectedPatient.symptoms || "-")}</p>
+                <strong>Notes</strong>
+                <p>${safeText(latestAppointment?.notes || "-")}</p>
+              </div>
               <table class="journey-print-table">
-                <thead><tr><th>Date</th><th>Test</th><th>Doctor</th><th>Bill</th><th>Paid</th><th>Due</th><th>Status</th></tr></thead>
-                <tbody>${testRows}</tbody>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Visit</th>
+                    <th>Kind</th>
+                    <th>Department</th>
+                    <th>Doctor</th>
+                    <th>Fee</th>
+                    <th>Payment</th>
+                    <th>Operator</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>${appointmentRows}</tbody>
               </table>
             </section>
-
-            <section class="journey-print-section">
-              <h2>Invoices & Transactions</h2>
-              <table class="journey-print-table">
-                <thead><tr><th>Date</th><th>Invoice</th><th>Module</th><th>Total</th><th>Paid/Advance</th><th>Due</th><th>Status</th></tr></thead>
-                <tbody>${invoiceRows}</tbody>
-              </table>
-            </section>
-
-            <section class="journey-print-section">
-              <h2>Complete Journey Timeline</h2>
-              <table class="journey-print-table">
-                <thead><tr><th>#</th><th>Date</th><th>Event</th><th>Details</th></tr></thead>
-                <tbody>${timelineRows}</tbody>
-              </table>
-            </section>
-
-            <div class="journey-print-signatures">
-              <div>Patient / Guardian</div>
-              <div>Prepared By</div>
-              <div>Authorized Signatory</div>
-            </div>
           </main>
         </body>
       </html>
@@ -556,10 +500,10 @@ export default function PatientJourneyPage({ setNotice }: Props) {
       <div className="module-panel-head">
         <div>
           <h3>Patient Journey</h3>
-          <p className="muted">Search one patient and view registration, visits, tests, invoices, payments, and due balance in one place.</p>
+          <p className="muted">Search one patient and view registration plus appointment scheduling details only.</p>
         </div>
         <Button type="button" variant="secondary" onClick={printSelectedJourney} disabled={!selectedPatient}>
-          Print Journey
+          Print Summary
         </Button>
       </div>
 
@@ -584,82 +528,86 @@ export default function PatientJourneyPage({ setNotice }: Props) {
 
       {selectedPatient && (
         <div ref={journeyPrintRef} className="patient-journey-print-area">
-          <div className="stat-grid journey-stat-grid">
-            <div className="stat-card"><p>Total Billed</p><h3>{money(totals.billed)}</h3></div>
-            <div className="stat-card"><p>Total Paid</p><h3>{money(totals.paid)}</h3></div>
-            <div className="stat-card"><p>Total Due</p><h3>{money(totals.due)}</h3></div>
-            <div className="stat-card"><p>Tests</p><h3>{totals.tests}</h3></div>
-            <div className="stat-card"><p>Visits</p><h3>{totals.visits}</h3></div>
-          </div>
-
           <Card>
             <div className="module-panel-head">
               <div>
                 <h4>{fullName(selectedPatient)}</h4>
-                <p className="muted">UHID: {selectedPatient.patient_id} • Mobile: {selectedPatient.phone || "-"} • Gender: {selectedPatient.gender || "-"} • Age: {selectedPatient.age || "-"}</p>
+                <p className="muted">Patient registration details for UHID {selectedPatient.patient_id}.</p>
               </div>
             </div>
             <div className="journey-detail-grid">
-              <div><strong>Address</strong><span>{selectedPatient.address || "-"}</span></div>
-              <div><strong>Allergies</strong><span>{selectedPatient.allergies || "-"}</span></div>
-              <div><strong>Emergency Contact</strong><span>{selectedPatient.emergency_contact || "-"} {selectedPatient.emergency_relation ? `(${selectedPatient.emergency_relation})` : ""}</span></div>
+              <div><strong>Patient ID</strong><span>{selectedPatient.patient_id}</span></div>
+              <div><strong>Name</strong><span>{fullName(selectedPatient)}</span></div>
+              <div><strong>Date of Birth</strong><span>{selectedPatient.dob || "-"}</span></div>
+              <div><strong>Age</strong><span>{selectedPatient.age || "-"}</span></div>
+              <div><strong>Gender</strong><span>{selectedPatient.gender || "-"}</span></div>
+              <div><strong>Marital Status</strong><span>{selectedPatient.marital_status || "-"}</span></div>
+              <div><strong>Mobile</strong><span>{selectedPatient.phone || "-"}</span></div>
               <div><strong>Family Mobile</strong><span>{selectedPatient.family_mobile || "-"}</span></div>
+              <div><strong>Address</strong><span>{selectedPatient.address || "-"}</span></div>
+              <div><strong>Vitals</strong><span>{`${selectedPatient.height ? `${selectedPatient.height} cm` : "-"}${selectedPatient.height && selectedPatient.weight ? " / " : ""}${selectedPatient.weight ? `${selectedPatient.weight} kg` : ""}`}</span></div>
             </div>
           </Card>
 
           <Card>
-            <h4>Discharge Summary</h4>
-            {latestDischargeSummary ? (
+            <div className="module-panel-head">
+              <div>
+                <h4>Appointment Scheduling</h4>
+                <p className="muted">Latest appointment information and appointment history.</p>
+              </div>
+            </div>
+            {selectedAppointment ? (
               <>
-                <div className="journey-detail-grid discharge-summary-grid">
-                  <div><strong>Admission Date</strong><span>{latestDischargeSummary.admission_date || "-"}</span></div>
-                  <div><strong>Discharge Date</strong><span>{latestDischargeSummary.discharge_date || "-"}</span></div>
-                  <div><strong>Status</strong><span>{latestDischargeSummary.status || "-"}</span></div>
-                  <div><strong>Billing Clearance</strong><span>{latestDischargeSummary.billing_clearance || "-"}</span></div>
+                <div className="journey-detail-grid">
+                  <div><strong>Appointment Date / Time</strong><span>{compactDate(selectedAppointment.appointment_date)}</span></div>
+                  <div><strong>Visit Type</strong><span>{selectedAppointment.visit_type || "-"}</span></div>
+                  <div><strong>Appointment Kind</strong><span>{selectedAppointment.appointment_kind || "-"}</span></div>
+                  <div><strong>Department</strong><span>{selectedAppointment.department || "-"}</span></div>
+                  <div><strong>Doctor</strong><span>{selectedAppointment.doctor_name || "-"}</span></div>
+                  <div><strong>Patient Type</strong><span>{selectedAppointment.patient_type || "-"}</span></div>
+                  <div><strong>Consultation Fee</strong><span>{selectedAppointment.consultation_fee ? money(selectedAppointment.consultation_fee) : "-"}</span></div>
+                  <div><strong>Payment Mode</strong><span>{selectedAppointment.payment_mode || "-"}</span></div>
+                  <div><strong>Operator</strong><span>{selectedAppointment.operator_name || "-"}</span></div>
+                  <div><strong>Notes</strong><span>{selectedAppointment.notes || "-"}</span></div>
+                  <div><strong>Chief Complaint</strong><span>{selectedAppointment.chief_complaint || selectedPatient.symptoms || "-"}</span></div>
                 </div>
-                <div className="journey-discharge-notes">
-                  <div><strong>Final Diagnosis</strong><p>{latestDischargeSummary.final_diagnosis || "-"}</p></div>
-                  <div><strong>Treatment Summary</strong><p>{latestDischargeSummary.treatment_summary || "-"}</p></div>
-                  <div><strong>Discharge Medicines</strong><p>{latestDischargeSummary.discharge_medicines || "-"}</p></div>
-                  <div><strong>Follow-up Plan</strong><p>{latestDischargeSummary.follow_up_plan || "-"}</p></div>
-                </div>
+                {appointments.length > 1 && (
+                  <div className="module-table">
+                    <table className="appointment-summary-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Visit</th>
+                          <th>Kind</th>
+                          <th>Department</th>
+                          <th>Doctor</th>
+                          <th>Fee</th>
+                          <th>Payment</th>
+                          <th>Operator</th>
+                          <th>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appointments.map((appointment) => (
+                          <tr key={`${appointment.id}-${appointment.appointment_date}`}>
+                            <td>{compactDate(appointment.appointment_date)}</td>
+                            <td>{appointment.visit_type || "-"}</td>
+                            <td>{appointment.appointment_kind || "-"}</td>
+                            <td>{appointment.department || "-"}</td>
+                            <td>{appointment.doctor_name || "-"}</td>
+                            <td>{appointment.consultation_fee ? money(appointment.consultation_fee) : "-"}</td>
+                            <td>{appointment.payment_mode || "-"}</td>
+                            <td>{appointment.operator_name || "-"}</td>
+                            <td>{appointment.chief_complaint || appointment.notes || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             ) : (
-              <p className="muted">No discharge summary recorded for this patient.</p>
-            )}
-          </Card>
-
-          <Card>
-            <h4>Test-wise Payment Details</h4>
-            <div className="module-table module-table-journey-tests">
-              <div className="table-head"><span>Date</span><span>Test</span><span>Doctor</span><span>Bill</span><span>Paid</span><span>Due</span><span>Status</span></div>
-              {diagnostics.length ? diagnostics.map((test) => (
-                <div className="table-row" key={test.id}><span>{compactDate(test.created_at)}</span><span>{test.test_name || "-"}</span><span>{test.doctor_name || "-"}</span><span>{money(test.amount)}</span><span>{money(test.paid_amount)}</span><span>{money(test.due_amount)}</span><span>{test.status || "-"}</span></div>
-              )) : <div className="empty-state">No lab/test billing found for this patient.</div>}
-            </div>
-          </Card>
-
-          <Card>
-            <h4>Invoices & Transactions</h4>
-            <div className="module-table module-table-journey-invoices">
-              <div className="table-head"><span>Date</span><span>Invoice</span><span>Module</span><span>Total</span><span>Paid/Advance</span><span>Due</span><span>Status</span></div>
-              {invoices.length ? invoices.map((invoice) => (
-                <div className="table-row" key={invoice.id}><span>{compactDate(invoice.created_at)}</span><span>{invoice.invoice_no || invoice.id}</span><span>{invoice.module || "-"}</span><span>{money(invoice.total_amount)}</span><span>{money(Number(invoice.paid_amount || 0) + Number(invoice.advance_amount || 0))}</span><span>{money(invoice.due_amount)}</span><span>{invoice.payment_status || "-"}</span></div>
-              )) : <div className="empty-state">No invoices found for this patient.</div>}
-            </div>
-          </Card>
-
-          <Card>
-            <h4>Complete Journey Timeline</h4>
-            {loading ? <p className="muted">Loading journey...</p> : (
-              <div className="journey-timeline">
-                {timeline.length ? timeline.map((item, index) => (
-                  <div className="journey-timeline-item" key={`${item.title}-${index}`}>
-                    <div className="journey-dot" />
-                    <div><strong>{item.title}</strong><p>{compactDate(item.date)} • {item.detail}{item.amount ? ` • Amount ${money(item.amount)}` : ""}</p></div>
-                  </div>
-                )) : <p className="muted">No journey events found yet.</p>}
-              </div>
+              <p className="muted">No appointment scheduling information available for this patient.</p>
             )}
           </Card>
         </div>
