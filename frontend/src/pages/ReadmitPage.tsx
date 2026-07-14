@@ -594,10 +594,12 @@ export default function ReadmitPage({ onSelect, setNotice, onReadmitComplete, oc
                             <option>Other</option>
                           </Select>
                         </Label>
-                        <Label className="checkbox">
-                          <Checkbox checked={profileUpdates.pregnant} onChange={handleProfileChange("pregnant")} />
-                          Pregnant
-                        </Label>
+                        {profileUpdates.gender === "Female" && (
+                          <Label className="checkbox">
+                            <Checkbox checked={profileUpdates.pregnant} onChange={handleProfileChange("pregnant")} />
+                            Pregnant
+                          </Label>
+                        )}
                         <Label className="span-2">
                           Current Symptoms
                           <Textarea value={profileUpdates.symptoms} onChange={handleProfileChange("symptoms")} rows={3} />

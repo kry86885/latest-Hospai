@@ -4117,8 +4117,8 @@ main {
 .op-queue-page .kpi-card.kpi-upcoming { background:linear-gradient(180deg,#faf5ff,#ffffff); border-color:#f3e8ff; }
 .op-queue-page .kpi-meta { margin-top:10px; color:#334155; font-size:13px; display:flex; gap:12px; flex-wrap:wrap; }
 
-.queue-board { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:12px; }
-.queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:10px; border-radius:8px; min-height:120px; }
+.queue-board { display:flex; gap:14px; margin-top:12px; overflow-x:auto; padding-bottom:6px; }
+.queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:10px; border-radius:8px; min-height:120px; flex:0 0 320px; }
 .queue-board-item { background:#ffffff; border:1px solid #eef2f7; padding:10px; border-radius:8px; margin-bottom:10px; cursor:pointer; }
 .queue-board-item.selected { box-shadow:0 4px 12px rgba(12,74,110,0.06); border-color:#cfe8ff; }
 .queue-card-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
@@ -4158,8 +4158,8 @@ main {
 .queue-pagination button.active { background:#3b82f6; color:white; }
 .queue-pagination button:disabled { opacity:.45; cursor:not-allowed; }
 .queue-board-card { padding:16px; }
-.queue-board { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-.queue-board-column { display:flex; flex-direction:column; gap:10px; padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; min-height:280px; }
+.queue-board { display:flex; gap:14px; overflow-x:auto; }
+.queue-board-column { display:flex; flex-direction:column; gap:10px; padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; min-height:280px; flex:0 0 340px; }
 .queue-board-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid #e5edf7; font-weight:800; color:#1e3a8a; }
 .queue-board-item { display:flex; flex-direction:column; gap:6px; width:100%; padding:12px; border:1px solid transparent; border-radius:10px; background:#f8fbff; text-align:left; color:#0f172a; cursor:pointer; transition:background .15s,border-color .15s; }
 .queue-board-item:hover, .queue-board-item.selected { border-color:#bfdbfe; background:#eff6ff; }
