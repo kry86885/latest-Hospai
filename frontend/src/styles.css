@@ -4052,10 +4052,11 @@ main {
 
 /* Lab & Diagnostic Billing UI update */
 .lab-billing-page, .op-queue-page { color: #172554; }
-.lab-page-header, .op-queue-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.lab-page-header, .op-queue-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
 .compact-lab-header { justify-content:flex-start; }
-.lab-header-icon, .op-queue-icon { width:64px; height:64px; border-radius:12px; display:grid; place-items:center; color:white; font-size:30px; background:linear-gradient(135deg,#0ea5e9,#2563eb); box-shadow:0 10px 22px rgba(37,99,235,.24); }
+.lab-header-icon, .op-queue-icon, .op-queue-brand { width:64px; height:64px; border-radius:12px; display:grid; place-items:center; color:white; font-size:30px; background:linear-gradient(135deg,#0ea5e9,#2563eb); box-shadow:0 6px 14px rgba(37,99,235,.12); }
 .op-queue-icon { background:linear-gradient(135deg,#7c3aed,#a855f7); }
+.op-queue-brand { background:transparent; box-shadow:none; padding:0; }
 .lab-page-header h2, .op-queue-header h2 { margin:0; font-size:28px; font-weight:800; color:#0f172a; }
 .lab-page-header p, .op-queue-header p { margin:5px 0 0; color:#475569; font-size:15px; }
 .single-column-lab { display:block; }
@@ -4099,8 +4100,8 @@ main {
 .purple-action { background:linear-gradient(135deg,#7c3aed,#9333ea) !important; color:#fff !important; }
 .green-action { background:#10b981 !important; color:#fff !important; }
 .yellow-action { background:#fbbf24 !important; color:#111827 !important; }
-.queue-filters-card { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:24px; padding:16px 18px; margin-bottom:14px; align-items:start; }
-.op-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:14px 18px; }
+.queue-filters-card { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:12px; padding:12px 12px; margin-bottom:10px; align-items:start; }
+.op-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:10px 12px; }
 .op-filter-grid label, .clinical-panel label, .print-slip-grid label { display:grid; gap:7px; color:#334155; font-size:13px; font-weight:800; }
 .op-filter-grid label {
   grid-template-rows:auto 38px;
@@ -4132,7 +4133,7 @@ main {
 .op-queue-page .kpi-cards { display:flex; gap:14px; flex-wrap:wrap; align-items:stretch; overflow-x:auto; padding-bottom:4px; }
 .op-queue-page .kpi-cards::-webkit-scrollbar { height: 8px; }
 .op-queue-page .kpi-cards::-webkit-scrollbar-thumb { background: rgba(15, 96, 161, 0.18); border-radius: 999px; }
-.op-queue-page .kpi-card { background:#fff; border:1px solid #e5e7eb; padding:16px; border-radius:14px; min-width:150px; width:min(170px,100%); min-height:88px; box-shadow:0 16px 32px rgba(15,23,42,0.05); display:grid; gap:6px; transition:transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+.op-queue-page .kpi-card { background:#fff; border:1px solid #e5e7eb; padding:12px; border-radius:12px; min-width:120px; width:min(150px,100%); min-height:68px; box-shadow:0 8px 20px rgba(15,23,42,0.04); display:grid; gap:6px; transition:transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
 .op-queue-page .kpi-card:hover { transform: translateY(-2px); box-shadow:0 20px 36px rgba(15,23,42,0.1); border-color: rgba(59,130,246,0.22); }
 .op-queue-page .kpi-card .kpi-icon { font-size:18px; }
 .op-queue-page .kpi-card .kpi-label { font-size:13px; color:#475569; font-weight:700; letter-spacing:0.01em; }
@@ -4157,9 +4158,9 @@ main {
   .op-queue-page .kpi-card { min-width:132px; width:132px; }
 }
 
-.queue-board { display:flex; gap:14px; margin-top:12px; overflow-x:auto; padding-bottom:6px; }
-.queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:10px; border-radius:8px; min-height:120px; flex:0 0 320px; }
-.queue-board-item { background:#ffffff; border:1px solid #eef2f7; padding:10px; border-radius:8px; margin-bottom:10px; cursor:pointer; }
+.queue-board { display:flex; gap:10px; margin-top:8px; overflow-x:auto; padding-bottom:6px; }
+.queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:8px; border-radius:8px; min-height:100px; flex:0 0 280px; }
+.queue-board-item { background:#ffffff; border:1px solid #eef2f7; padding:8px; border-radius:8px; margin-bottom:8px; cursor:pointer; }
 .queue-board-item.selected { box-shadow:0 4px 12px rgba(12,74,110,0.06); border-color:#cfe8ff; }
 .queue-card-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
 .queue-token { display:flex; gap:8px; align-items:center; }

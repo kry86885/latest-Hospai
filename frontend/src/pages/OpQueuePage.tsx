@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Input, Modal, Select } from "../components/ui";
+import BrandLogo from "../components/BrandLogo";
 import { apiFetch, reportError } from "../lib/api";
 import type { Notice, OpSummary, Patient } from "../types";
 import { PRINT_BRAND_HEADER_DATA_URI } from "../lib/printBrand";
@@ -552,7 +553,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
     <section className="module-page op-queue-page">
       <div className="op-queue-header">
         <div className="op-queue-title-wrap">
-          <div className="op-queue-icon">♙</div>
+          <div className="op-queue-brand"><BrandLogo className="brand-logo-img" /></div>
           <div>
               <h2>OP Queue Management</h2>
               <p>Manage OP patient queue and consult status</p>
