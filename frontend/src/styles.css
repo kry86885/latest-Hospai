@@ -4107,15 +4107,34 @@ main {
 .queue-summary-box .green { color:#10b981; } .queue-summary-box .orange { color:#f97316; } .queue-summary-box .blue { color:#2563eb; }
 
 /* New KPI cards and compact queue card styles */
-.op-queue-page .kpi-cards { display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; }
-.op-queue-page .kpi-card { background:#fff; border:1px solid #e6e9ee; padding:12px 14px; border-radius:8px; min-width:110px; box-shadow:0 1px 2px rgba(16,24,40,0.04); }
-.op-queue-page .kpi-card .kpi-label { font-size:12px; color:#475569; margin-bottom:6px; }
-.op-queue-page .kpi-card .kpi-value { font-size:20px; font-weight:700; color:#0b2540; }
-.op-queue-page .kpi-card.kpi-completed { background:linear-gradient(180deg,#ecfdf5,#ffffff); border-color:#d1fae5; }
-.op-queue-page .kpi-card.kpi-waiting { background:linear-gradient(180deg,#fff7ed,#ffffff); border-color:#ffedd5; }
-.op-queue-page .kpi-card.kpi-consult { background:linear-gradient(180deg,#eff6ff,#ffffff); border-color:#dbeafe; }
-.op-queue-page .kpi-card.kpi-upcoming { background:linear-gradient(180deg,#faf5ff,#ffffff); border-color:#f3e8ff; }
-.op-queue-page .kpi-meta { margin-top:10px; color:#334155; font-size:13px; display:flex; gap:12px; flex-wrap:wrap; }
+.op-queue-page .queue-summary-box { width:100%; margin-top:16px; }
+.op-queue-page .kpi-cards { display:flex; gap:14px; flex-wrap:wrap; align-items:stretch; overflow-x:auto; padding-bottom:4px; }
+.op-queue-page .kpi-cards::-webkit-scrollbar { height: 8px; }
+.op-queue-page .kpi-cards::-webkit-scrollbar-thumb { background: rgba(15, 96, 161, 0.18); border-radius: 999px; }
+.op-queue-page .kpi-card { background:#fff; border:1px solid #e5e7eb; padding:16px; border-radius:14px; min-width:150px; width:min(170px,100%); min-height:88px; box-shadow:0 16px 32px rgba(15,23,42,0.05); display:grid; gap:6px; transition:transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+.op-queue-page .kpi-card:hover { transform: translateY(-2px); box-shadow:0 20px 36px rgba(15,23,42,0.1); border-color: rgba(59,130,246,0.22); }
+.op-queue-page .kpi-card .kpi-icon { font-size:18px; }
+.op-queue-page .kpi-card .kpi-label { font-size:13px; color:#475569; font-weight:700; letter-spacing:0.01em; }
+.op-queue-page .kpi-card .kpi-value { font-size:26px; font-weight:800; color:#0f172a; line-height:1; }
+.op-queue-page .kpi-card.kpi-tokens { background:linear-gradient(180deg,#eff6ff,#ffffff); border-color:#bfdbfe; }
+.op-queue-page .kpi-card.kpi-waiting { background:linear-gradient(180deg,#fff7ed,#ffffff); border-color:#fed7aa; }
+.op-queue-page .kpi-card.kpi-consult { background:linear-gradient(180deg,#f5f3ff,#ffffff); border-color:#d8b4fe; }
+.op-queue-page .kpi-card.kpi-completed { background:linear-gradient(180deg,#ecfdf5,#ffffff); border-color:#a7f3d0; }
+.op-queue-page .kpi-card.kpi-upcoming { background:linear-gradient(180deg,#ecfeff,#ffffff); border-color:#67e8f9; }
+.op-queue-page .kpi-card.kpi-doctors { background:linear-gradient(180deg,#eef2ff,#ffffff); border-color:#c7d2fe; }
+.op-queue-page .kpi-card.kpi-followups { background:linear-gradient(180deg,#f0fdfa,#ffffff); border-color:#6ee7b7; }
+.op-queue-page .kpi-card.kpi-active { background:linear-gradient(180deg,#e0f2fe,#ffffff); border-color:#7dd3fc; }
+@media (max-width: 1150px) {
+  .op-queue-page .kpi-cards { gap:12px; }
+}
+@media (max-width: 900px) {
+  .op-queue-page .kpi-cards { justify-content:flex-start; }
+  .op-queue-page .kpi-card { min-width:140px; width:140px; }
+}
+@media (max-width: 720px) {
+  .op-queue-page .kpi-cards { overflow-x:auto; }
+  .op-queue-page .kpi-card { min-width:132px; width:132px; }
+}
 
 .queue-board { display:flex; gap:14px; margin-top:12px; overflow-x:auto; padding-bottom:6px; }
 .queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:10px; border-radius:8px; min-height:120px; flex:0 0 320px; }

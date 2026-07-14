@@ -572,36 +572,52 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
           <label><span className="op-filter-label">Visit Date</span><Input type="date" value={visitDateFilter} onChange={(event) => setVisitDateFilter(event.target.value)} /></label>
           <label><span className="op-filter-label">Visit Type</span><Select value={visitTypeFilter} onChange={(event) => setVisitTypeFilter(event.target.value)}><option value="">All</option><option value="OP">OPD</option><option value="IP">IP</option><option value="Emergency">Emergency</option><option value="Readmission">Readmission</option></Select></label>
           <label><span className="op-filter-label">Queue Type</span><Select value={queueTypeFilter} onChange={(event) => setQueueTypeFilter(event.target.value)}><option value="">All</option><option value="walkin">Walk-in / Appointment</option><option value="readmit">Readmission Queue</option></Select></label>
-          <label><span className="op-filter-label">Status</span><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All</option><option value="In Queue">In Queue</option><option value="In Consultation">In Consultation</option><option value="Completed">Completed</option></Select></label>
+          <label><span className="op-filter-label">Status</span><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All</option><option value="In Queue">In Queue</option><option value="In Consultation">In Consultation</option><option value="Completed">Completed</option><option value="Yet to Come">Yet to Come</option></Select></label>
           <label className="op-search-label"><span className="op-filter-label">Search</span><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="UHID, name, mobile..." /></label>
         </div>
         <aside className="queue-summary-box">
           <div className="kpi-cards">
-            <div className="kpi-card">
+            <div className="kpi-card kpi-tokens">
+              <div className="kpi-icon">👥</div>
               <div className="kpi-label">Total Tokens</div>
               <div className="kpi-value">{counts.total}</div>
             </div>
-            <div className="kpi-card kpi-completed">
-              <div className="kpi-label">Completed</div>
-              <div className="kpi-value">{counts.completed}</div>
-            </div>
             <div className="kpi-card kpi-waiting">
+              <div className="kpi-icon">⏳</div>
               <div className="kpi-label">Waiting</div>
               <div className="kpi-value">{counts.inQueue}</div>
             </div>
             <div className="kpi-card kpi-consult">
+              <div className="kpi-icon">👨‍⚕️</div>
               <div className="kpi-label">In Consultation</div>
               <div className="kpi-value">{counts.inConsultation}</div>
             </div>
-            {/* "Yet to Come" KPI hidden in UI (kept in data model) */}
-          </div>
-          {opSummary && (
-            <div className="kpi-meta">
-              <div><strong>Available Doctors:</strong> {opSummary.available_doctors}</div>
-              <div><strong>Follow-ups:</strong> {opSummary.follow_ups}</div>
-              <div><strong>Active Queue:</strong> {opSummary.active_queue}</div>
+            <div className="kpi-card kpi-completed">
+              <div className="kpi-icon">✅</div>
+              <div className="kpi-label">Completed</div>
+              <div className="kpi-value">{counts.completed}</div>
             </div>
-          )}
+            <div className="kpi-card kpi-upcoming">
+              <div className="kpi-icon">📅</div>
+              <div className="kpi-label">Yet to Come</div>
+              <div className="kpi-value">{counts.yet}</div>
+            </div>
+            <div className="kpi-card kpi-doctors">
+              <div className="kpi-icon">🩺</div>
+              <div className="kpi-label">Doctors</div>
+              <div className="kpi-value">{opSummary?.available_doctors ?? 0}</div>
+            </div>
+            <div className="kpi-card kpi-followups">
+              <div className="kpi-icon">🔄</div>
+              <div className="kpi-label">Follow-ups</div>
+              <div className="kpi-value">{opSummary?.follow_ups ?? 0}</div>
+            </div>
+            <div className="kpi-card kpi-active">
+              <div className="kpi-icon">📌</div>
+              <div className="kpi-label">Active Queue</div>
+              <div className="kpi-value">{opSummary?.active_queue ?? 0}</div>
+            </div>
+          </div>
         </aside>
       </div>
 
@@ -666,7 +682,29 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
                   </div>
                 ))}
               </div>
-              {/* Yet-to-come column removed from board UI to simplify view. Data still available in state. */}
+              <div className="queue-board-column">
+                <div className="queue-board-header"><span>Yet to Come</span><strong>{queueByStatus.yetToCome.length}</strong></div>
+                {queueByStatus.yetToCome.map((patient) => (
+                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
+                    <div className="queue-card-header">
+                      <div className="queue-token"><strong>{patient.token}</strong><span className="visit-type">{patient.visitType}</span></div>
+                      <div className="queue-wait">Arrives: <strong>{patient.arrivedAt}</strong></div>
+                    </div>
+                    <div className="queue-board-item-name">{patient.name}</div>
+                    <div className="queue-board-item-details">
+                      <div><small>UHID</small><b>{patient.uhid || "-"}</b></div>
+                      <div><small>Department</small><b>{patient.department || "-"}</b></div>
+                      <div><small>Doctor</small><b>{patient.doctor || "-"}</b></div>
+                      <div><small>Priority</small><b>{patient.priority || "Normal"}</b></div>
+                    </div>
+                    <div className="queue-card-actions">
+                      <button type="button" className="action-load" onClick={(e) => { e.stopPropagation(); openPatientDetails(patient); }}>Load</button>
+                      <button type="button" className="action-cancel" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "remove"); }}>Cancel</button>
+                      <button type="button" className="action-print" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>Completed</span><strong>{queueByStatus.completed.length}</strong></div>
                 {queueByStatus.completed.map((patient) => (
