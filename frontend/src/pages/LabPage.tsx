@@ -1090,7 +1090,6 @@ export default function LabPage({ setNotice }: Props) {
         <div className="lab-header-icon">📋</div>
         <div>
           <h2>Lab & Diagnostic Billing Process</h2>
-          <p>Create and manage billing for laboratory tests and diagnostic procedures</p>
         </div>
       </div>
 

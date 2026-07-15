@@ -918,8 +918,13 @@ function App() {
         {page !== "dashboard" && (
           <header className="topbar">
             <div>
-              <h2>{page === "admin" ? "Admin" : NAV_ITEMS.find((item) => item.id === page)?.label || "Dashboard"}</h2>
-              <p className="muted">Stay ahead with real-time care intelligence.</p>
+              {/* For selected module pages we remove the page title and subtitle per request */}
+              {!(new Set(["lab", "billing-record-payment", "accounts-doctor-payouts", "reports", "patient-journey", "add"]).has(page)) ? (
+                <>
+                  <h2>{page === "admin" ? "Admin" : NAV_ITEMS.find((item) => item.id === page)?.label || "Dashboard"}</h2>
+                  <p className="muted">Stay ahead with real-time care intelligence.</p>
+                </>
+              ) : null}
             </div>
           </header>
         )}

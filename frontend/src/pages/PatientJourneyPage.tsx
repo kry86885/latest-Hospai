@@ -500,7 +500,6 @@ export default function PatientJourneyPage({ setNotice }: Props) {
       <div className="module-panel-head">
         <div>
           <h3>Patient Journey</h3>
-          <p className="muted">Search one patient and view registration plus appointment scheduling details only.</p>
         </div>
         <Button type="button" variant="secondary" onClick={printSelectedJourney} disabled={!selectedPatient}>
           Print Summary
