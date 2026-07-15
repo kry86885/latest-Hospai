@@ -2342,10 +2342,18 @@ def op_summary():
 def op_doctor_schedules_list():
     schedule_date = request.args.get("date")
     doctor_name = request.args.get("doctor_name")
+    # Optional filters: status (e.g. 'available') and department
+    status = request.args.get("status") or None
+    department = request.args.get("department") or None
     return jsonify(
         {
             "schedules": rows_to_dicts(
-                list_doctor_schedules(schedule_date=schedule_date, doctor_name=doctor_name)
+                list_doctor_schedules(
+                    schedule_date=schedule_date,
+                    doctor_name=doctor_name,
+                    status=status,
+                    department=department,
+                )
             )
         }
     )
@@ -2360,7 +2368,10 @@ def op_doctor_schedules_create():
     )
     if validation_error:
         return validation_error
-    schedule_id = create_doctor_schedule(payload)
+    try:
+        schedule_id = create_doctor_schedule(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     log_audit_event(
         "create",
         "doctor_schedules",
@@ -2374,7 +2385,10 @@ def op_doctor_schedules_create():
 @require_permissions("patients.write")
 def op_doctor_schedules_update(schedule_id):
     payload = request.get_json(force=True)
-    updated = update_doctor_schedule(schedule_id, payload)
+    try:
+        updated = update_doctor_schedule(schedule_id, payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     if not updated:
         return jsonify({"error": "Doctor schedule not found"}), 404
     log_audit_event(

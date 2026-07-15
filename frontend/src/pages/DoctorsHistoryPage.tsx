@@ -61,10 +61,13 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
 
   const loadFilterOptions = async () => {
     try {
-      const [deptRes, scheduleRes, apptRes] = await Promise.all([
+      const [deptRes, scheduleRes] = await Promise.all([
         apiFetch<{ departments?: DepartmentRecord[] }>("/api/registration/departments").catch(() => ({ departments: [] })),
+        // Fetch all schedules (no date filter) to get the complete set of
+        // doctor names for the filter dropdown. We intentionally do NOT filter
+        // by status='available' here — we want to show all doctors who have
+        // ever had a schedule so that historical records can be looked up.
         apiFetch<{ schedules?: { doctor_name?: string | null }[] }>("/api/op/doctor-schedules").catch(() => ({ schedules: [] })),
-        apiFetch<{ appointments?: { doctor_name?: string | null }[] }>("/api/appointments").catch(() => ({ appointments: [] })),
       ]);
 
       setDepartmentsList(deptRes.departments || []);
@@ -73,15 +76,13 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
       (scheduleRes.schedules || []).forEach((row) => {
         if (row.doctor_name) names.add(row.doctor_name.trim());
       });
-      (apptRes.appointments || []).forEach((row) => {
-        if (row.doctor_name) names.add(row.doctor_name.trim());
-      });
 
       setDoctorsList(Array.from(names).sort((a, b) => a.localeCompare(b)));
     } catch (err) {
       reportError(setNotice, err as { message?: string; status?: number }, "Unable to load page filters.");
     }
   };
+
 
   const fetchConsultationHistory = async () => {
     setLoading(true);

@@ -264,21 +264,31 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     }
   };
 
-  const loadDoctorSuggestions = async () => {
+  const loadDoctorSuggestions = async (forDate?: string) => {
     try {
-      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null }[] }>("/api/op/doctor-schedules");
+      // When a specific appointment date is chosen, only show doctors with an
+      // 'available' schedule on that exact date. When no date is provided (e.g.
+      // on initial mount before the user has picked a date), fall back to all
+      // schedules so the datalist is not empty from the start.
+      const params = new URLSearchParams();
+      params.set("status", "available");
+      if (forDate) params.set("date", forDate);
+      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; start_time?: string | null; end_time?: string | null }[] }>(`/api/op/doctor-schedules?${params.toString()}`);
       const names = new Set<string>();
       const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
       (scheduleData.schedules || []).forEach((row) => {
         const value = (row.doctor_name || "").trim();
         if (!value) return;
         names.add(value);
-        const current = feesByDoctor[value] || {};
-        feesByDoctor[value] = {
-          department: row.department ?? current.department,
-          consultation_fee: row.consultation_fee ?? current.consultation_fee,
-          review_fee: row.review_fee ?? current.review_fee,
-        };
+        // For the fee map, use the first schedule entry per doctor (schedules
+        // are already ordered start_time ASC by the API).
+        if (!feesByDoctor[value]) {
+          feesByDoctor[value] = {
+            department: row.department ?? undefined,
+            consultation_fee: row.consultation_fee ?? null,
+            review_fee: row.review_fee ?? null,
+          };
+        }
       });
       setDoctorSuggestions(Array.from(names).sort((a, b) => a.localeCompare(b)));
       setDoctorFeeMap(feesByDoctor);
@@ -310,6 +320,31 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     void loadRegistrationOps();
   }, []);
 
+  // Re-fetch available doctors whenever the selected appointment date changes
+  // so the datalist only shows doctors who have a status='available' schedule
+  // on that specific date. The date portion is extracted from the datetime-local
+  // value (e.g. "2026-07-20T09:00" → "2026-07-20").
+  useEffect(() => {
+    const dateOnly = appointmentForm.appointment_date
+      ? appointmentForm.appointment_date.slice(0, 10)
+      : "";
+    if (!dateOnly) return;
+    void loadDoctorSuggestions(dateOnly);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointmentForm.appointment_date]);
+
+  // When the available doctor list changes (e.g. date was changed and we
+  // re-fetched), clear the selected doctor if they are no longer in the list
+  // so we don't silently book with an unavailable/unscheduled doctor.
+  useEffect(() => {
+    if (!appointmentForm.doctor_name) return;
+    if (doctorSuggestions.length === 0) return; // list not yet loaded — keep current value
+    if (!doctorSuggestions.includes(appointmentForm.doctor_name)) {
+      setAppointmentForm((prev) => ({ ...prev, doctor_name: "", consultation_fee: "" }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorSuggestions]);
+
   const filteredDoctorSuggestions = useMemo(() => {
     if (!appointmentForm.department) return doctorSuggestions;
     return doctorSuggestions.filter((name) => {
@@ -317,6 +352,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       return info?.department === appointmentForm.department;
     });
   }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
+
 
   const resolveAppointmentFee = (doctorName: string, appointmentKind: string) => {
     const selectedDoctor = doctorName.trim();

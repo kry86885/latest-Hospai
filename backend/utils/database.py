@@ -2578,8 +2578,31 @@ def create_doctor_schedule(data):
         review_fee = _coerce_float(data.get("review_fee"))
         status = data.get("status", "available")
         notes = data.get("notes")
+        new_start = data["start_time"]
+        new_end = data["end_time"]
+        doctor_name = data["doctor_name"]
         created_ids = []
         for schedule_date in schedule_dates:
+            date_str = schedule_date.isoformat()
+            # Block overlapping schedules for the SAME doctor on the same date.
+            # Two ranges [s1, e1) and [s2, e2) overlap when s1 < e2 AND s2 < e1.
+            # Different doctors on the same date/time are explicitly allowed.
+            cursor.execute(
+                """
+                SELECT id, start_time, end_time FROM doctor_schedules
+                WHERE doctor_name = ? AND schedule_date = ?
+                  AND start_time < ? AND end_time > ?
+                LIMIT 1
+                """,
+                (doctor_name, date_str, new_end, new_start),
+            )
+            conflict = cursor.fetchone()
+            if conflict:
+                raise ValueError(
+                    f"Doctor '{doctor_name}' already has a schedule on {date_str} "
+                    f"from {conflict['start_time']} to {conflict['end_time']} "
+                    f"that overlaps with {new_start}\u2013{new_end}."
+                )
             cursor.execute(
                 """
                 INSERT INTO doctor_schedules (
@@ -2588,11 +2611,11 @@ def create_doctor_schedule(data):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    data["doctor_name"],
+                    doctor_name,
                     data.get("department"),
-                    schedule_date.isoformat(),
-                    data["start_time"],
-                    data["end_time"],
+                    date_str,
+                    new_start,
+                    new_end,
                     slot_capacity,
                     consultation_fee,
                     review_fee,
@@ -2605,7 +2628,22 @@ def create_doctor_schedule(data):
         return created_ids[0] if created_ids else None
 
 
-def list_doctor_schedules(schedule_date=None, doctor_name=None):
+def list_doctor_schedules(schedule_date=None, doctor_name=None, status=None, department=None):
+    """Return doctor schedules filtered by date, doctor, status, and/or department.
+
+    Parameters
+    ----------
+    schedule_date : str, optional
+        ISO date string (``YYYY-MM-DD``).  When provided only schedules whose
+        ``schedule_date`` equals this value are returned.
+    doctor_name : str, optional
+        Exact doctor name match.
+    status : str, optional
+        One of ``'available'``, ``'full'``, or ``'leave'``.  Filters rows by
+        the schedule status column.
+    department : str, optional
+        Exact department name match.
+    """
     with get_connection() as conn:
         cursor = conn.cursor()
         clauses = []
@@ -2616,6 +2654,12 @@ def list_doctor_schedules(schedule_date=None, doctor_name=None):
         if doctor_name:
             clauses.append("doctor_name = ?")
             params.append(doctor_name)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if department:
+            clauses.append("department = ?")
+            params.append(department)
         where_clause = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         cursor.execute(
             f"SELECT * FROM doctor_schedules{where_clause} ORDER BY schedule_date ASC, start_time ASC",
@@ -2631,6 +2675,30 @@ def update_doctor_schedule(schedule_id, data):
         existing = cursor.fetchone()
         if not existing:
             return False
+        # Resolve the final values that will be written so we can check for conflicts.
+        new_doctor = data.get("doctor_name", existing["doctor_name"])
+        new_date = data.get("schedule_date", existing["schedule_date"])
+        new_start = data.get("start_time", existing["start_time"])
+        new_end = data.get("end_time", existing["end_time"])
+        # Block overlapping schedules for the SAME doctor on the same date,
+        # but exclude the row being updated from the conflict check.
+        cursor.execute(
+            """
+            SELECT id, start_time, end_time FROM doctor_schedules
+            WHERE doctor_name = ? AND schedule_date = ?
+              AND id != ?
+              AND start_time < ? AND end_time > ?
+            LIMIT 1
+            """,
+            (new_doctor, new_date, schedule_id, new_end, new_start),
+        )
+        conflict = cursor.fetchone()
+        if conflict:
+            raise ValueError(
+                f"Doctor '{new_doctor}' already has a schedule on {new_date} "
+                f"from {conflict['start_time']} to {conflict['end_time']} "
+                f"that overlaps with {new_start}\u2013{new_end}."
+            )
         cursor.execute(
             """
             UPDATE doctor_schedules
@@ -2639,11 +2707,11 @@ def update_doctor_schedule(schedule_id, data):
             WHERE id = ?
             """,
             (
-                data.get("doctor_name", existing["doctor_name"]),
+                new_doctor,
                 data.get("department", existing["department"]),
-                data.get("schedule_date", existing["schedule_date"]),
-                data.get("start_time", existing["start_time"]),
-                data.get("end_time", existing["end_time"]),
+                new_date,
+                new_start,
+                new_end,
                 int(data.get("slot_capacity", existing["slot_capacity"] or 12)),
                 _coerce_float(data.get("consultation_fee", existing["consultation_fee"])),
                 _coerce_float(data.get("review_fee", existing["review_fee"])),
