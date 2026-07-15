@@ -213,13 +213,28 @@ function App() {
       try {
         const labels = Array.from(document.querySelectorAll("label"));
         labels.forEach((label) => {
-          // Skip labels already containing a styled span
-          if (label.querySelector(".required-star")) return;
+          // Skip labels already containing a styled required-marker
+          if (label.querySelector(".required-marker")) return;
+
           const text = label.textContent || "";
-          if (text.includes("*")) {
-            // Replace raw '*' characters with a styled span
-            label.innerHTML = label.innerHTML.replace(/\*/g, '<span class="required-star">*</span>');
-          }
+          if (!text.includes("*")) return;
+
+          // Ensure label uses the UI label class so CSS selectors apply
+          if (!label.classList.contains("ui-label")) label.classList.add("ui-label");
+
+          // Remove literal '*' characters from any direct text nodes to avoid duplicates
+          Array.from(label.childNodes).forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = (node.textContent || "").replace(/\*/g, "");
+            }
+          });
+
+          // Append standardized required marker
+          const span = document.createElement("span");
+          span.className = "required-marker";
+          span.setAttribute("aria-hidden", "true");
+          span.textContent = "*";
+          label.appendChild(span);
         });
       } catch {
         // silent

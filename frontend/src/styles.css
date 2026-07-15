@@ -2102,6 +2102,14 @@ main {
   vertical-align: baseline;
 }
 
+/* Ensure required marker inside ui labels takes precedence over other color rules */
+.ui-label .required-marker {
+  color: #b91c1c !important;
+  font-weight: 800;
+  margin-left: 4px;
+  display: inline-block;
+}
+
 .label-text {
   display: inline-block;
   line-height: 1.4;
