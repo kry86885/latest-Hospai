@@ -5292,19 +5292,39 @@ def get_audit_logs(module_name=None, limit=100):
 def get_hospital_dashboard_summary(selected_date=None):
     with get_connection() as conn:
         cursor = conn.cursor()
+        
+        # Default behavior (current date semantics)
         selected_date_clause = "DATE(arrival_at) = CURRENT_DATE"
         encounter_date_clause = "to_char(arrival_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
         selected_date_params = ()
+        target_month_val = None
+        date_str = None
+        
+        # If a date is provided, validate it in Python to prevent executing a failing query
+        # that would abort the PostgreSQL transaction state.
         if selected_date:
             try:
-                cursor.execute("SELECT DATE(%s)", (selected_date,))
-                # Only use the date if the DB accepts it; fallback to current date semantics otherwise.
-                selected_date_clause = "DATE(arrival_at) = DATE(?)"
-                selected_date_params = (selected_date,)
+                parsed_dt = None
+                for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
+                    try:
+                        parsed_dt = datetime.strptime(selected_date, fmt)
+                        break
+                    except ValueError:
+                        continue
+                if parsed_dt:
+                    date_str = parsed_dt.date().isoformat()
+                    target_month_val = parsed_dt.strftime("%Y-%m")
+                    selected_date_clause = "DATE(arrival_at) = DATE(?)"
+                    selected_date_params = (date_str,)
+                    encounter_date_clause = "to_char(arrival_at, 'YYYY-MM') = ?"
             except Exception:
-                selected_date_clause = "DATE(arrival_at) = CURRENT_DATE"
-                selected_date_params = ()
+                pass
 
+        # 1. Encounters Daily & Monthly counts
+        encounter_query_params = selected_date_params * 3
+        if target_month_val:
+            encounter_query_params = encounter_query_params + (target_month_val,)
+            
         cursor.execute(
             f"""
             SELECT
@@ -5317,19 +5337,35 @@ def get_hospital_dashboard_summary(selected_date=None):
             FROM encounters
             WHERE {encounter_date_clause}
             """,
-            selected_date_params,
+            encounter_query_params,
         )
         encounter_summary = dict(cursor.fetchone() or {})
 
+        # 2. Revenue Summary
         selected_payment_date_clause = "DATE(created_at)=CURRENT_DATE"
         selected_invoice_date_clause = "DATE(i.created_at)=CURRENT_DATE"
         selected_diagnostic_date_clause = "DATE(created_at)=CURRENT_DATE"
         selected_pharmacy_date_clause = "DATE(sold_at)=CURRENT_DATE"
-        if selected_date_params:
+        
+        payment_month_clause = "to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        invoice_month_clause = "to_char(i.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        diagnostic_month_clause = "to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        pharmacy_month_clause = "to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        
+        revenue_query_params = ()
+        
+        if date_str:
             selected_payment_date_clause = "DATE(created_at)=DATE(?)"
             selected_invoice_date_clause = "DATE(i.created_at)=DATE(?)"
             selected_diagnostic_date_clause = "DATE(created_at)=DATE(?)"
             selected_pharmacy_date_clause = "DATE(sold_at)=DATE(?)"
+            
+            if target_month_val:
+                payment_month_clause = "to_char(created_at, 'YYYY-MM') = ?"
+                invoice_month_clause = "to_char(i.created_at, 'YYYY-MM') = ?"
+                diagnostic_month_clause = "to_char(created_at, 'YYYY-MM') = ?"
+                pharmacy_month_clause = "to_char(sold_at, 'YYYY-MM') = ?"
+                revenue_query_params = (date_str, target_month_val) * 4
 
         cursor.execute(
             f"""
@@ -5343,7 +5379,7 @@ def get_hospital_dashboard_summary(selected_date=None):
                     amount AS month_value,
                     0 AS due_value
                 FROM invoice_payments
-                WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {payment_month_clause}
                 UNION ALL
                 SELECT
                     CASE WHEN {selected_invoice_date_clause}
@@ -5366,57 +5402,83 @@ def get_hospital_dashboard_summary(selected_date=None):
                     FROM invoice_payments
                     GROUP BY invoice_id
                 ) p ON p.invoice_id = i.id
-                WHERE to_char(i.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {invoice_month_clause}
                 UNION ALL
                 SELECT
                     CASE WHEN {selected_diagnostic_date_clause} THEN paid_amount ELSE 0 END AS today_value,
                     paid_amount AS month_value,
                     due_amount AS due_value
                 FROM diagnostics
-                WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {diagnostic_month_clause}
                 UNION ALL
                 SELECT
                     CASE WHEN {selected_pharmacy_date_clause} THEN amount ELSE 0 END AS today_value,
                     amount AS month_value,
                     0 AS due_value
                 FROM pharmacy_sales
-                WHERE to_char(sold_at)=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {pharmacy_month_clause}
             ) q
             """,
-            selected_date_params * 4,
+            revenue_query_params,
         )
         revenue_summary = dict(cursor.fetchone() or {})
 
-        cursor.execute(
+        # 3. Period Revenue Summary
+        if date_str:
+            period_revenue_query = """
+                SELECT
+                    COALESCE(SUM(CASE WHEN DATE(created_at)=DATE(?) THEN amount ELSE 0 END), 0) AS today_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE(?) - INTERVAL '6 days' AND DATE(created_at)<=DATE(?) THEN amount ELSE 0 END), 0) AS weekly_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('month', DATE(?)) AND DATE(created_at)<=DATE(?) THEN amount ELSE 0 END), 0) AS monthly_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('year', DATE(?)) AND DATE(created_at)<=DATE(?) THEN amount ELSE 0 END), 0) AS yearly_revenue
+                FROM (
+                    SELECT created_at, amount
+                    FROM invoice_payments
+                    UNION ALL
+                    SELECT created_at, paid_amount AS amount
+                    FROM diagnostics
+                    UNION ALL
+                    SELECT sold_at AS created_at, amount
+                    FROM pharmacy_sales
+                ) q
             """
-            SELECT
-                COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE THEN amount ELSE 0 END), 0) AS today_revenue,
-                COALESCE(SUM(CASE WHEN DATE(created_at)>=CURRENT_DATE - INTERVAL '6 days' THEN amount ELSE 0 END), 0) AS weekly_revenue,
-                COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('month', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS monthly_revenue,
-                COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('year', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS yearly_revenue
-            FROM (
-                SELECT created_at, amount
-                FROM invoice_payments
-                UNION ALL
-                SELECT created_at, paid_amount AS amount
-                FROM diagnostics
-                UNION ALL
-                SELECT sold_at AS created_at, amount
-                FROM pharmacy_sales
-            ) q
+            period_revenue_params = (date_str, date_str, date_str, date_str, date_str, date_str, date_str)
+        else:
+            period_revenue_query = """
+                SELECT
+                    COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE THEN amount ELSE 0 END), 0) AS today_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=CURRENT_DATE - INTERVAL '6 days' THEN amount ELSE 0 END), 0) AS weekly_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('month', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS monthly_revenue,
+                    COALESCE(SUM(CASE WHEN DATE(created_at)>=DATE_TRUNC('year', CURRENT_DATE) THEN amount ELSE 0 END), 0) AS yearly_revenue
+                FROM (
+                    SELECT created_at, amount
+                    FROM invoice_payments
+                    UNION ALL
+                    SELECT created_at, paid_amount AS amount
+                    FROM diagnostics
+                    UNION ALL
+                    SELECT sold_at AS created_at, amount
+                    FROM pharmacy_sales
+                ) q
             """
-        )
+            period_revenue_params = ()
+
+        cursor.execute(period_revenue_query, period_revenue_params)
         period_revenue_summary = dict(cursor.fetchone() or {})
 
+        # 4. Payment Mode Breakdown
         selected_payment_mode_clause = "DATE(created_at)=CURRENT_DATE"
         selected_diagnostic_mode_clause = "DATE(created_at)=CURRENT_DATE"
         selected_pharmacy_mode_clause = "DATE(sold_at)=CURRENT_DATE"
         selected_invoice_mode_clause = "DATE(i.created_at)=CURRENT_DATE"
-        if selected_date_params:
+        
+        mode_breakdown_params = ()
+        if date_str:
             selected_payment_mode_clause = "DATE(created_at)=DATE(?)"
             selected_diagnostic_mode_clause = "DATE(created_at)=DATE(?)"
             selected_pharmacy_mode_clause = "DATE(sold_at)=DATE(?)"
             selected_invoice_mode_clause = "DATE(i.created_at)=DATE(?)"
+            mode_breakdown_params = (date_str,) * 4
 
         cursor.execute(
             f"""
@@ -5459,47 +5521,101 @@ def get_hospital_dashboard_summary(selected_date=None):
             GROUP BY label
             ORDER BY count DESC
             """,
-            selected_date_params * 4,
+            mode_breakdown_params,
         )
         payment_mode_breakdown = normalize_payment_mode_breakdown([dict(row) for row in cursor.fetchall()])
 
+        # 5. Income by Module and Referrals
+        diagnostics_income_month_clause = "to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        pharmacy_sales_month_clause = "to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        revenue_module_month_clause_ip = "to_char(ip.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        revenue_module_month_clause_i = "to_char(i.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        revenue_module_month_clause_diag = "to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        revenue_module_month_clause_pharm = "to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        referral_month_clause = "to_char(arrival_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        
+        diag_income_params = ()
+        pharm_sales_params = ()
+        module_breakdown_params = ()
+        referrals_params = ()
+        
+        if target_month_val:
+            diagnostics_income_month_clause = "to_char(created_at, 'YYYY-MM') = ?"
+            diag_income_params = (target_month_val,)
+            
+            pharmacy_sales_month_clause = "to_char(sold_at, 'YYYY-MM') = ?"
+            pharm_sales_params = (target_month_val,)
+            
+            revenue_module_month_clause_ip = "to_char(ip.created_at, 'YYYY-MM') = ?"
+            revenue_module_month_clause_i = "to_char(i.created_at, 'YYYY-MM') = ?"
+            revenue_module_month_clause_diag = "to_char(created_at, 'YYYY-MM') = ?"
+            revenue_module_month_clause_pharm = "to_char(sold_at, 'YYYY-MM') = ?"
+            
+            op_billing_today_clause_ip = "DATE(ip.created_at)=DATE(?)" if date_str else "DATE(ip.created_at)=CURRENT_DATE"
+            op_billing_today_clause_i = "DATE(i.created_at)=DATE(?)" if date_str else "DATE(i.created_at)=CURRENT_DATE"
+            lab_today_clause = "DATE(created_at)=DATE(?)" if date_str else "DATE(created_at)=CURRENT_DATE"
+            pharmacy_today_clause = "DATE(sold_at)=DATE(?)" if date_str else "DATE(sold_at)=CURRENT_DATE"
+            
+            # Setup module breakdown query parameters
+            # Subquery 1: today_clause (date_str), month_clause (target_month_val)
+            # Subquery 2: today_clause (date_str), month_clause (target_month_val)
+            # Subquery 3: today_clause (date_str), month_clause (target_month_val)
+            # Subquery 4: today_clause (date_str), month_clause (target_month_val)
+            module_breakdown_params = (
+                (date_str, target_month_val) +
+                (date_str, target_month_val) +
+                (date_str, target_month_val) +
+                (date_str, target_month_val)
+            )
+            
+            referral_month_clause = "to_char(arrival_at, 'YYYY-MM') = ?"
+            referrals_params = (target_month_val,)
+        else:
+            op_billing_today_clause_ip = "DATE(ip.created_at)=CURRENT_DATE"
+            op_billing_today_clause_i = "DATE(i.created_at)=CURRENT_DATE"
+            lab_today_clause = "DATE(created_at)=CURRENT_DATE"
+            pharmacy_today_clause = "DATE(sold_at)=CURRENT_DATE"
+
         cursor.execute(
-            """
+            f"""
             SELECT COALESCE(SUM(amount), 0) AS diagnostics_income
             FROM diagnostics
-            WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
-            """
+            WHERE {diagnostics_income_month_clause}
+            """,
+            diag_income_params
         )
         diagnostics_income_row = cursor.fetchone()
         diagnostics_income = diagnostics_income_row["diagnostics_income"] if diagnostics_income_row else 0
 
         cursor.execute(
-            """
+            f"""
             SELECT COALESCE(SUM(amount), 0) AS pharmacy_sales
             FROM pharmacy_sales
-            WHERE to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
-            """
+            WHERE {pharmacy_sales_month_clause}
+            """,
+            pharm_sales_params
         )
         pharmacy_sales_row = cursor.fetchone()
         pharmacy_sales = pharmacy_sales_row["pharmacy_sales"] if pharmacy_sales_row else 0
+
         cursor.execute(
-            """
+            f"""
             SELECT label,
                    COALESCE(SUM(today_value), 0) AS today_amount,
-                   COALESCE(SUM(month_value), 0) AS month_amount
+                   COALESCE(SUM(month_amount), 0) AS month_amount
             FROM (
                 SELECT
                     'op_billing' AS label,
-                    CASE WHEN DATE(ip.created_at)=CURRENT_DATE THEN ip.amount ELSE 0 END AS today_value,
-                    ip.amount AS month_value
+                    CASE WHEN {op_billing_today_clause_ip} THEN ip.amount ELSE 0 END AS today_value,
+                    ip.amount AS month_amount
                 FROM invoice_payments ip
                 INNER JOIN invoices i ON i.id = ip.invoice_id
                 WHERE i.module = 'OP'
-                  AND to_char(ip.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                  AND {revenue_module_month_clause_ip}
                 UNION ALL
                 SELECT
                     'op_billing' AS label,
-                    CASE WHEN DATE(i.created_at)=CURRENT_DATE
+                    CASE WHEN {op_billing_today_clause_i}
                          THEN CASE
                              WHEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount > 0
                              THEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount
@@ -5511,7 +5627,7 @@ def get_hospital_dashboard_summary(selected_date=None):
                         WHEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount > 0
                         THEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount
                         ELSE 0
-                    END AS month_value
+                    END AS month_amount
                 FROM invoices i
                 LEFT JOIN (
                     SELECT invoice_id, COALESCE(SUM(amount), 0) AS paid_total
@@ -5519,24 +5635,25 @@ def get_hospital_dashboard_summary(selected_date=None):
                     GROUP BY invoice_id
                 ) p ON p.invoice_id = i.id
                 WHERE i.module = 'OP'
-                  AND to_char(i.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                  AND {revenue_module_month_clause_i}
                 UNION ALL
                 SELECT
                     'lab_diagnostics' AS label,
-                    CASE WHEN DATE(created_at)=CURRENT_DATE THEN paid_amount ELSE 0 END AS today_value,
-                    paid_amount AS month_value
+                    CASE WHEN {lab_today_clause} THEN paid_amount ELSE 0 END AS today_value,
+                    paid_amount AS month_amount
                 FROM diagnostics
-                WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {revenue_module_month_clause_diag}
                 UNION ALL
                 SELECT
                     'pharmacy' AS label,
-                    CASE WHEN DATE(sold_at)=CURRENT_DATE THEN amount ELSE 0 END AS today_value,
-                    amount AS month_value
+                    CASE WHEN {pharmacy_today_clause} THEN amount ELSE 0 END AS today_value,
+                    amount AS month_amount
                 FROM pharmacy_sales
-                WHERE to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE {revenue_module_month_clause_pharm}
             ) q
             GROUP BY label
-            """
+            """,
+            module_breakdown_params
         )
         revenue_module_rows = [dict(row) for row in cursor.fetchall()]
         revenue_module_breakdown = {
@@ -5550,16 +5667,18 @@ def get_hospital_dashboard_summary(selected_date=None):
                 revenue_module_breakdown["monthly"][label] = module_row.get("month_amount", 0) or 0
 
         cursor.execute(
-            """
+            f"""
             SELECT COALESCE(referral_source, 'unknown') AS label, COUNT(*) AS count
             FROM encounters
-            WHERE to_char(arrival_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+            WHERE {referral_month_clause}
             GROUP BY referral_source
             ORDER BY count DESC
-            """
+            """,
+            referrals_params
         )
         referral_summary = [dict(row) for row in cursor.fetchall()]
 
+        # Helper to run scalar SQL queries with optional parameters
         def scalar(query, params=()):
             cursor.execute(query, params)
             row = cursor.fetchone()
@@ -5568,92 +5687,104 @@ def get_hospital_dashboard_summary(selected_date=None):
             value = row[0]
             return value or 0
 
+        # Define date placeholders for operations_today queries
+        if date_str:
+            date_placeholder = "DATE(?)"
+            scalar_date_params = (date_str,)
+        else:
+            date_placeholder = "CURRENT_DATE"
+            scalar_date_params = ()
+
         patient_registration_total = scalar(
-            "SELECT COUNT(*) FROM patients WHERE DATE(created_at)=CURRENT_DATE"
+            f"SELECT COUNT(*) FROM patients WHERE DATE(created_at)={date_placeholder}",
+            scalar_date_params
         )
         queue_total = scalar(
-            "SELECT COUNT(*) FROM appointments WHERE DATE(COALESCE(appointment_date, created_at))=CURRENT_DATE"
+            f"SELECT COUNT(*) FROM appointments WHERE DATE(COALESCE(appointment_date, created_at))={date_placeholder}",
+            scalar_date_params
         )
         queue_completed = scalar(
-            """
+            f"""
             SELECT COUNT(*) FROM appointments
-            WHERE DATE(COALESCE(appointment_date, created_at))=CURRENT_DATE
+            WHERE DATE(COALESCE(appointment_date, created_at))={date_placeholder}
               AND LOWER(COALESCE(status, '')) IN ('completed', 'finished', 'consulted', 'done')
-            """
+            """,
+            scalar_date_params
         )
         queue_pending = max(queue_total - queue_completed, 0)
 
         billing_total = scalar(
-            "SELECT COUNT(*) FROM invoices WHERE DATE(created_at)=CURRENT_DATE"
+            f"SELECT COUNT(*) FROM invoices WHERE DATE(created_at)={date_placeholder}",
+            scalar_date_params
         )
         billing_completed = scalar(
-            """
+            f"""
             SELECT COUNT(*) FROM invoices
-            WHERE DATE(created_at)=CURRENT_DATE
+            WHERE DATE(created_at)={date_placeholder}
               AND (LOWER(COALESCE(payment_status, ''))='paid' OR COALESCE(paid_amount, 0) > 0)
-            """
+            """,
+            scalar_date_params
         )
         billing_pending = scalar(
-            """
+            f"""
             SELECT COUNT(*) FROM invoices
-            WHERE DATE(created_at)=CURRENT_DATE
+            WHERE DATE(created_at)={date_placeholder}
               AND (COALESCE(due_amount, 0) > 0 OR LOWER(COALESCE(payment_status, '')) IN ('due', 'partial', 'pending'))
-            """
+            """,
+            scalar_date_params
         )
 
         payment_collection_completed = scalar(
-            """
+            f"""
             SELECT COALESCE(SUM(total_count), 0)
             FROM (
-                SELECT COUNT(*) AS total_count FROM invoice_payments WHERE DATE(created_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM invoice_payments WHERE DATE(created_at)={date_placeholder}
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)=CURRENT_DATE AND COALESCE(paid_amount, 0) > 0
+                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)={date_placeholder} AND COALESCE(paid_amount, 0) > 0
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM pharmacy_sales WHERE DATE(sold_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM pharmacy_sales WHERE DATE(sold_at)={date_placeholder}
             ) q
-            """
+            """,
+            scalar_date_params * 3
         )
         payment_collection_pending = scalar(
-            """
+            f"""
             SELECT COALESCE(SUM(total_count), 0)
             FROM (
-                SELECT COUNT(*) AS total_count FROM invoices WHERE DATE(created_at)=CURRENT_DATE AND COALESCE(due_amount, 0) > 0
+                SELECT COUNT(*) AS total_count FROM invoices WHERE DATE(created_at)={date_placeholder} AND COALESCE(due_amount, 0) > 0
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)=CURRENT_DATE AND COALESCE(due_amount, 0) > 0
+                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)={date_placeholder} AND COALESCE(due_amount, 0) > 0
             ) q
-            """
+            """,
+            scalar_date_params * 2
         )
         payment_collection_total = payment_collection_completed + payment_collection_pending
 
         today_revenue_record_count = scalar(
-            """
+            f"""
             SELECT COALESCE(SUM(total_count), 0)
             FROM (
-                SELECT COUNT(*) AS total_count FROM invoice_payments WHERE DATE(created_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM invoice_payments WHERE DATE(created_at)={date_placeholder}
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM invoices WHERE DATE(created_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM invoices WHERE DATE(created_at)={date_placeholder}
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM diagnostics WHERE DATE(created_at)={date_placeholder}
                 UNION ALL
-                SELECT COUNT(*) AS total_count FROM pharmacy_sales WHERE DATE(sold_at)=CURRENT_DATE
+                SELECT COUNT(*) AS total_count FROM pharmacy_sales WHERE DATE(sold_at)={date_placeholder}
             ) q
-            """
+            """,
+            scalar_date_params * 4
         )
         revenue_reporting_count = 1 if today_revenue_record_count > 0 else 0
 
-        doctor_payout_total = scalar(
-            "SELECT COUNT(*) FROM doctor_payouts WHERE DATE(created_at)=CURRENT_DATE OR payout_month=to_char(CURRENT_DATE, 'YYYY-MM')"
-        )
-        doctor_payout_completed = scalar(
-            """
+        # Payout Summary Dates
+        payout_total_query = "SELECT COUNT(*) FROM doctor_payouts WHERE DATE(created_at)=CURRENT_DATE OR payout_month=to_char(CURRENT_DATE, 'YYYY-MM')"
+        payout_completed_query = """
             SELECT COUNT(*) FROM doctor_payouts
             WHERE (DATE(created_at)=CURRENT_DATE OR payout_month=to_char(CURRENT_DATE, 'YYYY-MM'))
               AND (LOWER(COALESCE(status, ''))='paid' OR COALESCE(due_amount, 0)=0)
-            """
-        )
-        doctor_payout_pending = max(doctor_payout_total - doctor_payout_completed, 0)
-        doctor_payout_ready = scalar(
-            """
+        """
+        payout_ready_query = """
             SELECT COALESCE(SUM(
                 CASE
                     WHEN COALESCE(due_amount, 0) > 0 THEN due_amount
@@ -5663,8 +5794,39 @@ def get_hospital_dashboard_summary(selected_date=None):
             ), 0)
             FROM doctor_payouts
             WHERE to_char(CURRENT_DATE, 'YYYY-MM') IN (payout_month, to_char(created_at::date, 'YYYY-MM'))
+        """
+        payout_total_params = ()
+        payout_completed_params = ()
+        payout_ready_params = ()
+
+        if date_str and target_month_val:
+            payout_total_query = "SELECT COUNT(*) FROM doctor_payouts WHERE DATE(created_at)=DATE(?) OR payout_month=?"
+            payout_total_params = (date_str, target_month_val)
+            
+            payout_completed_query = """
+                SELECT COUNT(*) FROM doctor_payouts
+                WHERE (DATE(created_at)=DATE(?) OR payout_month=?)
+                  AND (LOWER(COALESCE(status, ''))='paid' OR COALESCE(due_amount, 0)=0)
             """
-        )
+            payout_completed_params = (date_str, target_month_val)
+            
+            payout_ready_query = """
+                SELECT COALESCE(SUM(
+                    CASE
+                        WHEN COALESCE(due_amount, 0) > 0 THEN due_amount
+                        WHEN LOWER(COALESCE(status, '')) IN ('pending', 'partial') THEN GREATEST(COALESCE(amount, 0) - COALESCE(paid_amount, 0), 0)
+                        ELSE 0
+                    END
+                ), 0)
+                FROM doctor_payouts
+                WHERE ? IN (payout_month, to_char(created_at::date, 'YYYY-MM'))
+            """
+            payout_ready_params = (target_month_val,)
+
+        doctor_payout_total = scalar(payout_total_query, payout_total_params)
+        doctor_payout_completed = scalar(payout_completed_query, payout_completed_params)
+        doctor_payout_pending = max(doctor_payout_total - doctor_payout_completed, 0)
+        doctor_payout_ready = scalar(payout_ready_query, payout_ready_params)
 
         operations_today = {
             "patient_registration": {"count": patient_registration_total, "completed": patient_registration_total, "pending": 0},
