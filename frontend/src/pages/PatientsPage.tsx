@@ -274,6 +274,7 @@ export default function PatientsPage({
           </TableHead>
           {displayPatients.map((patient) => {
             const expanded = selectedPatient?.patient_id === patient.patient_id;
+            const createdAt = patient.created_at ? formatDate(patient.created_at) : "-";
             return (
               <Fragment key={patient.patient_id}>
                 <TableRow className={expanded ? "active" : ""}>
@@ -284,7 +285,7 @@ export default function PatientsPage({
                   <TableCell>{patient.age || "-"}</TableCell>
                   <TableCell>{patient.gender || "-"}</TableCell>
                   <TableCell>{patient.phone || "-"}</TableCell>
-                  <TableCell>{formatDateTimeIST(patient.created_at)}</TableCell>
+                  <TableCell>{createdAt}</TableCell>
                   <TableCell className="row-actions">
                     <Button variant="ghost" size="sm" onClick={() => onSelect(expanded ? null : patient)}>
                       {expanded ? "Hide" : "View"}

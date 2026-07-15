@@ -100,7 +100,6 @@ export default function ReportsPage({ setNotice }: Props) {
       <div className="module-panel-head revenue-reports-title">
         <div>
           <h3>Revenue Reports</h3>
-          <p className="muted">Stay ahead with real-time care intelligence.</p>
         </div>
       </div>
 

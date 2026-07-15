@@ -2560,6 +2560,11 @@ main {
     display: grid;
   }
 
+  .patient-list-table .table-head,
+  .patient-list-table .table-row {
+    grid-template-columns: 1.8fr 1.8fr 0.8fr 0.8fr 1fr 1fr 1.2fr;
+  }
+
   .patient-list-table {
     display: none;
   }

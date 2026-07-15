@@ -1090,7 +1090,6 @@ export default function LabPage({ setNotice }: Props) {
         <div className="lab-header-icon">📋</div>
         <div>
           <h2>Lab & Diagnostic Billing Process</h2>
-          <p>Create and manage billing for laboratory tests and diagnostic procedures</p>
         </div>
       </div>
 
@@ -1279,15 +1278,6 @@ export default function LabPage({ setNotice }: Props) {
                 value={billDate}
                 onChange={(event) => setBillDate(event.target.value)}
                 aria-label="Bill Date"
-              />
-            </div>
-            <div className="lab-field">
-              <label>Due Date</label>
-              <Input 
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                aria-label="Due Date"
               />
             </div>
             <div className="lab-field">

@@ -5289,41 +5289,64 @@ def get_audit_logs(module_name=None, limit=100):
         return cursor.fetchall()
 
 
-def get_hospital_dashboard_summary():
+def get_hospital_dashboard_summary(selected_date=None):
     with get_connection() as conn:
         cursor = conn.cursor()
+        selected_date_clause = "DATE(arrival_at) = CURRENT_DATE"
+        encounter_date_clause = "to_char(arrival_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')"
+        selected_date_params = ()
+        if selected_date:
+            try:
+                cursor.execute("SELECT DATE(%s)", (selected_date,))
+                # Only use the date if the DB accepts it; fallback to current date semantics otherwise.
+                selected_date_clause = "DATE(arrival_at) = DATE(?)"
+                selected_date_params = (selected_date,)
+            except Exception:
+                selected_date_clause = "DATE(arrival_at) = CURRENT_DATE"
+                selected_date_params = ()
 
         cursor.execute(
-            """
+            f"""
             SELECT
-                SUM(CASE WHEN encounter_type='IP' AND DATE(arrival_at)=CURRENT_DATE THEN 1 ELSE 0 END) AS daily_ip,
-                SUM(CASE WHEN encounter_type='OP' AND DATE(arrival_at)=CURRENT_DATE THEN 1 ELSE 0 END) AS daily_op,
+                SUM(CASE WHEN encounter_type='IP' AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_ip,
+                SUM(CASE WHEN encounter_type='OP' AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_op,
                 SUM(CASE WHEN encounter_type='IP' THEN 1 ELSE 0 END) AS monthly_ip,
                 SUM(CASE WHEN encounter_type='OP' THEN 1 ELSE 0 END) AS monthly_op,
-                SUM(CASE WHEN is_accident=1 AND DATE(arrival_at)=CURRENT_DATE THEN 1 ELSE 0 END) AS daily_accident,
+                SUM(CASE WHEN is_accident=1 AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_accident,
                 SUM(CASE WHEN is_accident=1 THEN 1 ELSE 0 END) AS monthly_accident
             FROM encounters
-            WHERE to_char(arrival_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
-            """
+            WHERE {encounter_date_clause}
+            """,
+            selected_date_params,
         )
         encounter_summary = dict(cursor.fetchone() or {})
 
+        selected_payment_date_clause = "DATE(created_at)=CURRENT_DATE"
+        selected_invoice_date_clause = "DATE(i.created_at)=CURRENT_DATE"
+        selected_diagnostic_date_clause = "DATE(created_at)=CURRENT_DATE"
+        selected_pharmacy_date_clause = "DATE(sold_at)=CURRENT_DATE"
+        if selected_date_params:
+            selected_payment_date_clause = "DATE(created_at)=DATE(?)"
+            selected_invoice_date_clause = "DATE(i.created_at)=DATE(?)"
+            selected_diagnostic_date_clause = "DATE(created_at)=DATE(?)"
+            selected_pharmacy_date_clause = "DATE(sold_at)=DATE(?)"
+
         cursor.execute(
-            """
+            f"""
             SELECT
                 COALESCE(SUM(today_value), 0) AS today_revenue,
                 COALESCE(SUM(month_value), 0) AS monthly_revenue,
                 COALESCE(SUM(due_value), 0) AS due_collection
             FROM (
                 SELECT
-                    CASE WHEN DATE(created_at)=CURRENT_DATE THEN amount ELSE 0 END AS today_value,
+                    CASE WHEN {selected_payment_date_clause} THEN amount ELSE 0 END AS today_value,
                     amount AS month_value,
                     0 AS due_value
                 FROM invoice_payments
                 WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
                 UNION ALL
                 SELECT
-                    CASE WHEN DATE(i.created_at)=CURRENT_DATE
+                    CASE WHEN {selected_invoice_date_clause}
                          THEN CASE
                              WHEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount > 0
                              THEN (i.paid_amount - COALESCE(p.paid_total, 0)) + i.advance_amount - i.refunded_amount
@@ -5346,20 +5369,21 @@ def get_hospital_dashboard_summary():
                 WHERE to_char(i.created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
                 UNION ALL
                 SELECT
-                    CASE WHEN DATE(created_at)=CURRENT_DATE THEN paid_amount ELSE 0 END AS today_value,
+                    CASE WHEN {selected_diagnostic_date_clause} THEN paid_amount ELSE 0 END AS today_value,
                     paid_amount AS month_value,
                     due_amount AS due_value
                 FROM diagnostics
                 WHERE to_char(created_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
                 UNION ALL
                 SELECT
-                    CASE WHEN DATE(sold_at)=CURRENT_DATE THEN amount ELSE 0 END AS today_value,
+                    CASE WHEN {selected_pharmacy_date_clause} THEN amount ELSE 0 END AS today_value,
                     amount AS month_value,
                     0 AS due_value
                 FROM pharmacy_sales
-                WHERE to_char(sold_at, 'YYYY-MM')=to_char(CURRENT_DATE, 'YYYY-MM')
+                WHERE to_char(sold_at)=to_char(CURRENT_DATE, 'YYYY-MM')
             ) q
-            """
+            """,
+            selected_date_params * 4,
         )
         revenue_summary = dict(cursor.fetchone() or {})
 
@@ -5384,26 +5408,36 @@ def get_hospital_dashboard_summary():
         )
         period_revenue_summary = dict(cursor.fetchone() or {})
 
+        selected_payment_mode_clause = "DATE(created_at)=CURRENT_DATE"
+        selected_diagnostic_mode_clause = "DATE(created_at)=CURRENT_DATE"
+        selected_pharmacy_mode_clause = "DATE(sold_at)=CURRENT_DATE"
+        selected_invoice_mode_clause = "DATE(i.created_at)=CURRENT_DATE"
+        if selected_date_params:
+            selected_payment_mode_clause = "DATE(created_at)=DATE(?)"
+            selected_diagnostic_mode_clause = "DATE(created_at)=DATE(?)"
+            selected_pharmacy_mode_clause = "DATE(sold_at)=DATE(?)"
+            selected_invoice_mode_clause = "DATE(i.created_at)=DATE(?)"
+
         cursor.execute(
-            """
+            f"""
             SELECT label, COALESCE(SUM(count), 0) AS count
             FROM (
                 SELECT COALESCE(NULLIF(TRIM(payment_mode), ''), 'cash') AS label,
                        COALESCE(SUM(amount), 0) AS count
                 FROM invoice_payments
-                WHERE DATE(created_at)=CURRENT_DATE
+                WHERE {selected_payment_mode_clause}
                 GROUP BY label
                 UNION ALL
                 SELECT COALESCE(NULLIF(TRIM(payment_mode), ''), 'cash') AS label,
                        COALESCE(SUM(paid_amount), 0) AS count
                 FROM diagnostics
-                WHERE DATE(created_at)=CURRENT_DATE
+                WHERE {selected_diagnostic_mode_clause}
                 GROUP BY label
                 UNION ALL
                 SELECT COALESCE(NULLIF(TRIM(payment_mode), ''), 'cash') AS label,
                        COALESCE(SUM(amount), 0) AS count
                 FROM pharmacy_sales
-                WHERE DATE(sold_at)=CURRENT_DATE
+                WHERE {selected_pharmacy_mode_clause}
                 GROUP BY label
                 UNION ALL
                 SELECT 'cash' AS label,
@@ -5420,11 +5454,12 @@ def get_hospital_dashboard_summary():
                     FROM invoice_payments
                     GROUP BY invoice_id
                 ) p ON p.invoice_id = i.id
-                WHERE DATE(i.created_at)=CURRENT_DATE
+                WHERE {selected_invoice_mode_clause}
             ) q
             GROUP BY label
             ORDER BY count DESC
-            """
+            """,
+            selected_date_params * 4,
         )
         payment_mode_breakdown = normalize_payment_mode_breakdown([dict(row) for row in cursor.fetchall()])
 

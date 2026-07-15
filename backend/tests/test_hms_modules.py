@@ -460,6 +460,12 @@ def test_dashboard_revenue_uses_successful_payment_date(app_client):
     assert revenue["monthly_total"] == 1250
     assert any(row["label"] == "UPI" and row["count"] == 1250 for row in revenue["payment_mode_breakdown"])
 
+    dated_dashboard = app_client.get("/api/dashboard/hospital-summary?date=2000-01-01")
+    assert dated_dashboard.status_code == 200
+    dated_revenue = dated_dashboard.get_json()["revenue"]
+    assert dated_revenue["today_total"] == 1250
+    assert any(row["label"] == "UPI" and row["count"] == 1250 for row in dated_revenue["payment_mode_breakdown"])
+
 
 def test_hr_and_audit_permissions(app_client):
     _owner_login(app_client)

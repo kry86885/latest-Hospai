@@ -1950,7 +1950,8 @@ def dashboard_analytics():
 @app.get("/api/dashboard/hospital-summary")
 @require_permissions("patients.read")
 def dashboard_hospital_summary():
-    return jsonify(get_hospital_dashboard_summary())
+    selected_date = request.args.get("date")
+    return jsonify(get_hospital_dashboard_summary(selected_date=selected_date))
 
 
 @app.get("/api/patients")

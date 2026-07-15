@@ -21,12 +21,28 @@ export default function ShareModal({ open, onClose, options }: ShareModalProps) 
   const { blob, filename, title, text, shareUrl } = options;
 
   const handleCopy = async () => {
+    const fallbackCopy = async (text: string) => {
+      const input = document.createElement("input");
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      input.setSelectionRange(0, 99999);
+      const success = document.execCommand("copy");
+      document.body.removeChild(input);
+      return success;
+    };
+
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else if (!(await fallbackCopy(shareUrl))) {
+        throw new Error("Clipboard copy unavailable");
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Clipboard copy failed:", err);
+      window.alert("Copy failed. Please select the link and press Ctrl+C to copy manually.");
     }
   };
 
