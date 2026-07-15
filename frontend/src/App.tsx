@@ -994,6 +994,7 @@ function App() {
               handleSelectPatient(patient);
               navigateToPage("patients");
             }}
+            onNavigate={navigateToPage}
           />
         )}
         {page === "op-desk" && hasPermission("patients.read") && <OpPage key={pageKeys[page] || 0} setNotice={setNotice} canEdit={hasPermission("patients.write")} />}
