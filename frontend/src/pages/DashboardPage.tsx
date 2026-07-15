@@ -390,6 +390,10 @@ export default function DashboardPage({
     [patients, dashboardDate]
   );
   const selectedDateRegistrationCount = dashboardDate === todayIso ? (stats.today || patientsForDashboardDate.length) : patientsForDashboardDate.length;
+  const dashboardDateIsToday = dashboardDate === todayIso;
+  const selectedDateRevenueLabel = dashboardDateIsToday ? "Today's Revenue" : "Revenue";
+  const selectedDateRevenueValue = dashboardDateIsToday ? formatCurrencyShort(todayRevenue) : "N/A";
+  const selectedDateRevenueSub = dashboardDateIsToday ? "From today's invoices" : `Selected date: ${currentDateLabel}`;
 
   // Derived values
   const dailyOp = hospitalSummary?.ip_op_counts?.daily_op || 0;
@@ -672,9 +676,9 @@ export default function DashboardPage({
         />
         <KpiCard
           icon={<svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
-          label="Today's Revenue"
-          value={formatCurrencyShort(todayRevenue)}
-          sub="From today's invoices"
+          label={selectedDateRevenueLabel}
+          value={selectedDateRevenueValue}
+          sub={selectedDateRevenueSub}
           iconBg="linear-gradient(135deg,#f59e0b,#d97706)"
           onClick={() => setRevenuePopup("today")}
         />

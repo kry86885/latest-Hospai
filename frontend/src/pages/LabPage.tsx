@@ -1282,15 +1282,6 @@ export default function LabPage({ setNotice }: Props) {
               />
             </div>
             <div className="lab-field">
-              <label>Due Date</label>
-              <Input 
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                aria-label="Due Date"
-              />
-            </div>
-            <div className="lab-field">
               <label>Payment Mode *</label>
               <Select value={paymentMode} onChange={(event) => setPaymentMode(event.target.value)} aria-label="Payment Mode">
                 {PAYMENT_MODES.map(mode => <option key={mode}>{mode}</option>)}
