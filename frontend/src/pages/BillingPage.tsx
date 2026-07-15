@@ -603,10 +603,10 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
             * { box-sizing: border-box; }
             body { margin: 0; color: #0f172a; font-family: Arial, Helvetica, sans-serif; background: #fff; }
             .sheet { border: 1px solid #dbeafe; border-radius: 10px; overflow: hidden; }
-            .header { display: grid; grid-template-columns: 58px 1fr 220px; align-items: start; gap: 14px; padding: 18px 22px 14px; background: #eef7ff; border-bottom: 2px solid #111827; }
-            .brand-logo { width: 56px; height: 56px; object-fit: contain; display: block; }
-            .brand-title { margin: 0 0 3px; font-size: 17px; font-weight: 800; color: #062f56; line-height: 1.1; }
-            .brand-line { margin: 1px 0; font-size: 10px; font-weight: 700; color: #062f56; line-height: 1.25; }
+            .header { display: grid; grid-template-columns: 140px 1fr 220px; align-items: start; gap: 14px; padding: 18px 22px 14px; background: #eef7ff; border-bottom: 2px solid #111827; }
+            .brand-logo { width: 130px; height: auto; max-height: 56px; object-fit: contain; display: block; }
+            .brand-title { margin: 0 0 3px; font-size: 24px; font-weight: 800; color: #062f56; line-height: 1.1; }
+            .brand-line { margin: 1px 0; font-size: 12px; font-weight: 700; color: #062f56; line-height: 1.25; }
             .meta { text-align: right; }
             .meta h1 { margin: 0 0 6px; color: #1d4ed8; font-size: 20px; line-height: 1.2; }
             .content { padding: 22px; }

@@ -5425,8 +5425,9 @@ main {
 
 .sidebar .brand-logo-img,
 .sidebar .brand-logo-fallback {
-  width: 42px;
-  height: 42px;
+  width: 220px !important;
+  height: auto !important;
+  max-height: 75px !important;
 }
 
 /* OP Management PDF alignment: dashboard registration popup and patient detail cards */
@@ -5607,6 +5608,12 @@ main {
   object-fit: contain;
   display: block;
   padding: 8px 12px;
+
+  width: 220px !important;
+  height: auto !important;
+  max-height: 75px !important;
+  max-width: 100%;
+  object-fit: contain !important;
 }
 .sidebar .brand .brand-title {
   display: none;

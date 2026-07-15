@@ -42,15 +42,15 @@ def draw_pdf_brand_header(pdf, left_margin: float, top_y: float, title_width: fl
     """Draw Rapha Medical Services branding header.
 
     Layout (left to right):
-      - Logo image (22-24 mm wide) at x=left_margin, y=top_y
-      - Hospital details text starting x=left_margin+26, y=top_y
+      - Logo image (42 mm wide) at x=left_margin, y=top_y
+      - Hospital details text starting x=left_margin+46, y=top_y
       - Report title section is rendered separately by the caller (right-aligned)
 
     Never draws hospital text on top of separator lines or table borders.
     Caller must start first table at y >= 48 mm.
     """
     logo_path = _frontend_logo_path()
-    logo_w = 22  # mm
+    logo_w = 42  # mm
     text_x = left_margin + logo_w + 4  # 4 mm gap after logo
 
     if logo_path:
@@ -64,19 +64,19 @@ def draw_pdf_brand_header(pdf, left_margin: float, top_y: float, title_width: fl
         text_x = left_margin  # fallback: start at left margin
 
     pdf.set_xy(text_x, top_y + 0.5)
-    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_font("Helvetica", "B", 16)
     pdf.set_text_color(20, 61, 94)
-    pdf.cell(70, 5.5, BRAND_NAME, ln=True)
+    pdf.cell(70, 6, BRAND_NAME, ln=True)
     pdf.set_x(text_x)
-    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_font("Helvetica", "B", 10.5)
     pdf.set_text_color(20, 61, 94)
-    pdf.cell(70, 4.5, "POLYCLINIC &", ln=True)
+    pdf.cell(70, 5, "POLYCLINIC &", ln=True)
     pdf.set_x(text_x)
-    pdf.cell(70, 4.5, "DIAGNOSTICS", ln=True)
+    pdf.cell(70, 5, "DIAGNOSTICS", ln=True)
     pdf.set_x(text_x)
-    pdf.set_font("Helvetica", "", 7.5)
+    pdf.set_font("Helvetica", "", 8.5)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(70, 4, "Polyclinic | Diagnostics", ln=True)
+    pdf.cell(70, 4.5, "Polyclinic | Diagnostics", ln=True)
 
     pdf.set_text_color(0, 0, 0)
 

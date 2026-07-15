@@ -1575,8 +1575,8 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
     # Separator line at y=42mm; first table starts at y=48mm
     LOGO_X = 15
     LOGO_Y = 14
-    LOGO_W = 22
-    TEXT_X = 42
+    LOGO_W = 42
+    TEXT_X = 61
     TITLE_X = 115
     SEP_Y = 42
 
@@ -1591,15 +1591,15 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
     if not logo_path:
         TEXT_X = LOGO_X  # shift left if no logo
     pdf.set_xy(TEXT_X, LOGO_Y)
-    pdf.set_font(font, "B", 12)
+    pdf.set_font(font, "B", 16)
     pdf.set_text_color(20, 61, 94)
-    pdf.cell(70, 5.5, clean_txt("VERARA"), ln=True)
+    pdf.cell(70, 6, clean_txt("VERARA"), ln=True)
     pdf.set_x(TEXT_X)
-    pdf.set_font(font, "B", 8)
+    pdf.set_font(font, "B", 10)
     pdf.set_text_color(20, 61, 94)
-    pdf.cell(70, 4.5, clean_txt("POLYCLINIC, PHARMACY,"), ln=True)
+    pdf.cell(70, 5, clean_txt("POLYCLINIC, PHARMACY,"), ln=True)
     pdf.set_x(TEXT_X)
-    pdf.cell(70, 4.5, clean_txt("DIAGNOSTICS"), ln=True)
+    pdf.cell(70, 5, clean_txt("DIAGNOSTICS"), ln=True)
     pdf.set_text_color(0, 0, 0)
 
     # Report title block (right side)

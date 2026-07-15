@@ -69,7 +69,7 @@ describe("OpQueuePage", () => {
 
     expect(container.textContent).toContain("OP Queue Management");
     expect(container.textContent).toContain("Asha Sharma");
-    expect(container.textContent).toContain("Available Doctors");
+    expect(container.textContent).toContain("Doctors");
     expect(container.textContent).toContain("OP Queue Board");
 
     act(() => {

@@ -142,6 +142,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
     const invoiceDue = invoices.reduce((sum, row) => sum + Number(row.due_amount || 0), 0);
     const testBilled = diagnostics.reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const testPaid = diagnostics.reduce((sum, row) => sum + Number(row.paid_amount || 0), 0);
+    const testDue = diagnostics.reduce((sum, row) => sum + Number(row.due_amount || 0), 0);
     return {
       billed: invoiceBilled + testBilled,
       paid: invoicePaid + testPaid,
@@ -291,7 +292,7 @@ export default function PatientJourneyPage({ setNotice }: Props) {
             }
             .journey-print-header {
               display: grid;
-              grid-template-columns: 58px 1fr 220px;
+              grid-template-columns: 140px 1fr 220px;
               align-items: start;
               gap: 14px;
               padding: 12px 14px 10px;
@@ -299,9 +300,10 @@ export default function PatientJourneyPage({ setNotice }: Props) {
               border-bottom: 2px solid #111827;
               margin-bottom: 14px;
             }
-            .journey-print-logo { width: 56px; height: 56px; object-fit: contain; display: block; }
-            .journey-print-brand-title { margin: 0 0 3px; font-size: 17px; font-weight: 800; color: #062f56; line-height: 1.1; }
-            .journey-print-brand-line { margin: 1px 0; font-size: 10px; font-weight: 700; color: #062f56; line-height: 1.25; }
+            .journey-print-logo { width: 130px; height: auto; max-height: 56px; object-fit: contain; display: block; }
+            .journey-print-brand-title { margin: 0 0 3px; font-size: 24px; font-weight: 800; color: #062f56; line-height: 1.1; }
+            .journey-print-brand-line { margin: 1px 0; font-size: 12px; font-weight: 700; color: #062f56; line-height: 1.25; }
+            .journey-print-brand-unit { margin: 2px 0 0; font-size: 10px; color: #475569; line-height: 1.3; }
             .journey-print-title { text-align: right; color: #111827; }
             .journey-print-title h1 { margin: 0 0 5px; font-size: 16px; text-decoration: underline; color: #062f56; line-height: 1.2; }
             .journey-print-title p { margin: 2px 0; color: #475569; font-size: 10px; }

@@ -246,7 +246,15 @@ function App() {
     return params.get("page") || "dashboard";
   };
   const [page, setPage] = useState(isAdminRoutePath ? "admin" : getPageFromUrl());
+  const [pageKeys, setPageKeys] = useState<Record<string, number>>({});
   const [patientsPageKey, setPatientsPageKey] = useState(0);
+
+  useEffect(() => {
+    setPageKeys((prev) => ({
+      ...prev,
+      [page]: (prev[page] || 0) + 1,
+    }));
+  }, [page]);
   const [stats, setStats] = useState<Stats>(EMPTY_STATS);
   const [dashboardAnalytics, setDashboardAnalytics] = useState<DashboardAnalytics | null>(null);
   const [hospitalSummary, setHospitalSummary] = useState<HospitalSummary | null>(null);
@@ -682,6 +690,12 @@ function App() {
     if (nextPage === "patients") {
       setPatientsPageKey((prev) => prev + 1);
     }
+    if (nextPage === page) {
+      setPageKeys((prev) => ({
+        ...prev,
+        [nextPage]: (prev[nextPage] || 0) + 1,
+      }));
+    }
     syncUrlForPage(nextPage);
     setPage(nextPage);
   };
@@ -931,6 +945,7 @@ function App() {
 
         {page === "dashboard" && (
           <DashboardPage
+            key={pageKeys[page] || 0}
             stats={stats}
             recentPatients={recentPatients}
             patients={patients}
@@ -953,6 +968,7 @@ function App() {
 
         {page === "add" && (
           <AddPatientPage
+            key={pageKeys[page] || 0}
             ocrLanguage={ocrLanguage}
             onCreate={handleCreatePatient}
             selectedPatient={selectedPatient}
@@ -962,15 +978,16 @@ function App() {
         )}
 
         {page === "consent-desk" && hasPermission("patients.write") && (
-          <RegistrationDeskPage mode="consent" selectedPatient={selectedPatient} setNotice={setNotice} />
+          <RegistrationDeskPage key={pageKeys[page] || 0} mode="consent" selectedPatient={selectedPatient} setNotice={setNotice} />
         )}
 
         {page === "insurance-desk" && hasPermission("patients.write") && (
-          <RegistrationDeskPage mode="insurance" selectedPatient={selectedPatient} setNotice={setNotice} />
+          <RegistrationDeskPage key={pageKeys[page] || 0} mode="insurance" selectedPatient={selectedPatient} setNotice={setNotice} />
         )}
 
         {page === "op-queue-management" && hasPermission("patients.read") && (
           <OpQueuePage
+            key={pageKeys[page] || 0}
             setNotice={setNotice}
             onOpenPatient={(patientId) => {
               const patient = patients.find((item) => item.patient_id === patientId) || null;
@@ -979,17 +996,17 @@ function App() {
             }}
           />
         )}
-        {page === "op-desk" && hasPermission("patients.read") && <OpPage setNotice={setNotice} canEdit={hasPermission("patients.write")} />}
-        {page === "doctor-prescription" && hasPermission("patients.write") && <PatientWorkflowPage setNotice={setNotice} view="prescription" />}
-        {page === "ip-admission" && hasPermission("patients.write") && <PatientWorkflowPage setNotice={setNotice} view="ip-admission" />}
-        {page === "nurse-station" && hasPermission("patients.write") && <PatientWorkflowPage setNotice={setNotice} view="nurse-station" />}
-        {page === "discharge-summary" && hasPermission("patients.write") && <PatientWorkflowPage setNotice={setNotice} view="discharge-summary" />}
+        {page === "op-desk" && hasPermission("patients.read") && <OpPage key={pageKeys[page] || 0} setNotice={setNotice} canEdit={hasPermission("patients.write")} />}
+        {page === "doctor-prescription" && hasPermission("patients.write") && <PatientWorkflowPage key={pageKeys[page] || 0} setNotice={setNotice} view="prescription" />}
+        {page === "ip-admission" && hasPermission("patients.write") && <PatientWorkflowPage key={pageKeys[page] || 0} setNotice={setNotice} view="ip-admission" />}
+        {page === "nurse-station" && hasPermission("patients.write") && <PatientWorkflowPage key={pageKeys[page] || 0} setNotice={setNotice} view="nurse-station" />}
+        {page === "discharge-summary" && hasPermission("patients.write") && <PatientWorkflowPage key={pageKeys[page] || 0} setNotice={setNotice} view="discharge-summary" />}
 
-        {page === "patient-journey" && hasPermission("patients.read") && <PatientJourneyPage setNotice={setNotice} />}
+        {page === "patient-journey" && hasPermission("patients.read") && <PatientJourneyPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
         {page === "patients" && (
           <PatientsPage
-            key={patientsPageKey}
+            key={pageKeys[page] || 0}
             patients={patients}
             onSelect={handleSelectPatient}
             onDelete={handleDeletePatient}
@@ -1008,11 +1025,12 @@ function App() {
         )}
 
         {page === "readmit" && (
-          <ReadmitPage onSelect={handleSelectPatient} setNotice={setNotice} onReadmitComplete={refreshPatientData} ocrLanguage={ocrLanguage} />
+          <ReadmitPage key={pageKeys[page] || 0} onSelect={handleSelectPatient} setNotice={setNotice} onReadmitComplete={refreshPatientData} ocrLanguage={ocrLanguage} />
         )}
 
         {page === "doctors-history" && (
           <DoctorsHistoryPage
+            key={pageKeys[page] || 0}
             setNotice={setNotice}
             onOpenPatient={(patientId) => {
               const patient = patients.find((item) => item.patient_id === patientId) || null;
@@ -1022,34 +1040,34 @@ function App() {
           />
         )}
 
-        {page === "billing-aging" && hasPermission("billing.read") && <BillingAgingPage setNotice={setNotice} />}
-        {page === "billing-reconciliation" && hasPermission("billing.read") && <BillingReconciliationPage setNotice={setNotice} />}
-        {page === "billing-create-invoice" && hasPermission("billing.write") && <BillingCreateInvoicePage setNotice={setNotice} />}
-        {page === "billing-record-payment" && hasPermission("billing.write") && <BillingRecordPaymentPage setNotice={setNotice} />}
-        {page === "billing-insurance-claims" && hasPermission("billing.write") && <BillingClaimsPage setNotice={setNotice} />}
-        {page === "billing-invoices" && hasPermission("billing.read") && <BillingInvoicesPage setNotice={setNotice} />}
-        {page === "billing-mode-breakdown" && hasPermission("billing.read") && <BillingPaymentModesPage setNotice={setNotice} />}
-        {page === "billing-module-collections" && hasPermission("billing.read") && <BillingCollectionsPage setNotice={setNotice} />}
+        {page === "billing-aging" && hasPermission("billing.read") && <BillingAgingPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-reconciliation" && hasPermission("billing.read") && <BillingReconciliationPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-create-invoice" && hasPermission("billing.write") && <BillingCreateInvoicePage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-record-payment" && hasPermission("billing.write") && <BillingRecordPaymentPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-insurance-claims" && hasPermission("billing.write") && <BillingClaimsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-invoices" && hasPermission("billing.read") && <BillingInvoicesPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-mode-breakdown" && hasPermission("billing.read") && <BillingPaymentModesPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "billing-module-collections" && hasPermission("billing.read") && <BillingCollectionsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "lab" && hasPermission("lab.read") && <LabPage setNotice={setNotice} />}
+        {page === "lab" && hasPermission("lab.read") && <LabPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "hrms" && hasPermission("hr.read") && <HrmsPage setNotice={setNotice} />}
+        {page === "hrms" && hasPermission("hr.read") && <HrmsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "ot" && hasPermission("ot.read") && <OtPage setNotice={setNotice} />}
+        {page === "ot" && hasPermission("ot.read") && <OtPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "accounts" && hasPermission("accounts.read") && <AccountsOverviewPage setNotice={setNotice} />}
-        {page === "accounts-overview" && hasPermission("accounts.read") && <AccountsOverviewPage setNotice={setNotice} />}
-        {page === "accounts-ledger" && hasPermission("accounts.read") && <AccountsLedgerPage setNotice={setNotice} />}
-        {page === "accounts-vendor-payments" && hasPermission("accounts.read") && <AccountsVendorPaymentsPage setNotice={setNotice} />}
-        {page === "accounts-doctor-payouts" && hasPermission("accounts.read") && <AccountsDoctorPayoutsPage setNotice={setNotice} />}
+        {page === "accounts" && hasPermission("accounts.read") && <AccountsOverviewPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "accounts-overview" && hasPermission("accounts.read") && <AccountsOverviewPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "accounts-ledger" && hasPermission("accounts.read") && <AccountsLedgerPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "accounts-vendor-payments" && hasPermission("accounts.read") && <AccountsVendorPaymentsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
+        {page === "accounts-doctor-payouts" && hasPermission("accounts.read") && <AccountsDoctorPayoutsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "reports" && hasPermission("reports.read") && <ReportsPage setNotice={setNotice} />}
+        {page === "reports" && hasPermission("reports.read") && <ReportsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "employees" && hasPermission("employees.read") && <EmployeesPage setNotice={setNotice} canWriteEmployees={hasPermission("employees.write")} />}
+        {page === "employees" && hasPermission("employees.read") && <EmployeesPage key={pageKeys[page] || 0} setNotice={setNotice} canWriteEmployees={hasPermission("employees.write")} />}
 
-        {page === "admin" && hasPermission("employees.write") && <AdminPage setNotice={setNotice} />}
+        {page === "admin" && hasPermission("employees.write") && <AdminPage key={pageKeys[page] || 0} setNotice={setNotice} />}
 
-        {page === "settings" && <SettingsPage stats={stats} user={user} canReadAudit={hasPermission("audit.read")} />}
+        {page === "settings" && <SettingsPage key={pageKeys[page] || 0} stats={stats} user={user} canReadAudit={hasPermission("audit.read")} />}
         </Container>
       </main>
       <SettingsModal

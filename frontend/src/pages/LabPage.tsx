@@ -470,7 +470,7 @@ export default function LabPage({ setNotice }: Props) {
             /* --- 3-column branding header --- */
             .print-header {
               display: grid;
-              grid-template-columns: 58px 1fr 220px;
+              grid-template-columns: 140px 1fr 220px;
               align-items: start;
               gap: 14px;
               padding-bottom: 12px;
@@ -478,29 +478,30 @@ export default function LabPage({ setNotice }: Props) {
               border-bottom: 2px solid #111827;
             }
             .print-logo {
-              width: 56px;
-              height: 56px;
+              width: 130px;
+              height: auto;
+              max-height: 56px;
               object-fit: contain;
               display: block;
             }
             .print-brand-block {}
             .print-brand-title {
               margin: 0 0 3px;
-              font-size: 17px;
+              font-size: 24px;
               font-weight: 800;
               color: #062f56;
               line-height: 1.1;
             }
             .print-brand-line {
               margin: 1px 0;
-              font-size: 10px;
+              font-size: 12px;
               font-weight: 700;
               color: #062f56;
               line-height: 1.25;
             }
             .print-brand-unit {
               margin: 2px 0 0;
-              font-size: 9px;
+              font-size: 10px;
               color: #475569;
               line-height: 1.3;
             }
@@ -798,7 +799,7 @@ export default function LabPage({ setNotice }: Props) {
             /* --- 3-column branding header --- */
             .print-header {
               display: grid;
-              grid-template-columns: 58px 1fr 220px;
+              grid-template-columns: 140px 1fr 220px;
               align-items: start;
               gap: 14px;
               padding-bottom: 12px;
@@ -806,29 +807,30 @@ export default function LabPage({ setNotice }: Props) {
               border-bottom: 2px solid #111827;
             }
             .print-logo {
-              width: 56px;
-              height: 56px;
+              width: 130px;
+              height: auto;
+              max-height: 56px;
               object-fit: contain;
               display: block;
             }
             .print-brand-block {}
             .print-brand-title {
               margin: 0 0 3px;
-              font-size: 17px;
+              font-size: 24px;
               font-weight: 800;
               color: #062f56;
               line-height: 1.1;
             }
             .print-brand-line {
               margin: 1px 0;
-              font-size: 10px;
+              font-size: 12px;
               font-weight: 700;
               color: #062f56;
               line-height: 1.25;
             }
             .print-brand-unit {
               margin: 2px 0 0;
-              font-size: 9px;
+              font-size: 10px;
               color: #475569;
               line-height: 1.3;
             }
@@ -913,7 +915,7 @@ export default function LabPage({ setNotice }: Props) {
             /* --- 3-column branding header --- */
             .print-header {
               display: grid;
-              grid-template-columns: 58px 1fr 220px;
+              grid-template-columns: 140px 1fr 220px;
               align-items: start;
               gap: 14px;
               padding-bottom: 12px;
@@ -921,29 +923,30 @@ export default function LabPage({ setNotice }: Props) {
               border-bottom: 2px solid #111827;
             }
             .print-logo {
-              width: 56px;
-              height: 56px;
+              width: 130px;
+              height: auto;
+              max-height: 56px;
               object-fit: contain;
               display: block;
             }
             .print-brand-block {}
             .print-brand-title {
               margin: 0 0 3px;
-              font-size: 17px;
+              font-size: 24px;
               font-weight: 800;
               color: #062f56;
               line-height: 1.1;
             }
             .print-brand-line {
               margin: 1px 0;
-              font-size: 10px;
+              font-size: 12px;
               font-weight: 700;
               color: #062f56;
               line-height: 1.25;
             }
             .print-brand-unit {
               margin: 2px 0 0;
-              font-size: 9px;
+              font-size: 10px;
               color: #475569;
               line-height: 1.3;
             }
