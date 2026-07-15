@@ -1,0 +1,253 @@
+[33mcommit f9a26da3766d6554129141ae50e06756d0a39975[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Merge: afdb757 d64db05
+Author: kusumapriya-meda <medakusumapriya26@gmail.com>
+Date:   Wed Jul 15 15:36:39 2026 +0530
+
+    Merge branch 'main' of https://github.com/kry86885/HospAI
+
+[33mcommit afdb757a91fd6c5472105ff1b88f7ecb0f3f4361[m
+Author: kusumapriya-meda <medakusumapriya26@gmail.com>
+Date:   Wed Jul 15 15:36:27 2026 +0530
+
+    Updated backend and frontend pages
+
+[33mcommit d64db059ffdb2b182ac5e3778b4df0f37e08768a[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Wed Jul 15 15:02:20 2026 +0530
+
+    removed extra texts
+
+[33mcommit bf0062b0f3146b7378db8160147a4b88698dac7c[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Wed Jul 15 14:25:13 2026 +0530
+
+    enhance PostgreSQL setup, database initialization, backend testing, and frontend compatibility
+
+[33mcommit ba371bc54cad9d10a22272cef1e4b8b1b8c730e6[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Wed Jul 15 12:26:20 2026 +0530
+
+    mandatory fields to red color
+
+[33mcommit b1da50ea654f7b8642d3ffe72bdf7df0e48d5c46[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Wed Jul 15 11:47:50 2026 +0530
+
+    feat: enhance lab diagnostics, appointment validation, and sidebar branding
+
+[33mcommit 9260e15d0e66eee2e548e960d4d9efdfb3056434[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 17:55:09 2026 +0530
+
+    queue management
+
+[33mcommit 1222d8e4a744af2c5dabdf1794eb7f63cef7fdf9[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 16:24:43 2026 +0530
+
+    feat: enhance patient registration, follow-up validation, and patient journey UI
+
+[33mcommit 80e024ccf1832acbc296e5480e54280a6564c223[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 15:44:46 2026 +0530
+
+    patients journey details
+
+[33mcommit 5d7064952189e8db66a78f342bf2f75c404bd673[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 15:14:53 2026 +0530
+
+    queue management
+
+[33mcommit a41f1124c41701449bb64769d010859a1f409219[m
+Merge: a33ee61 a418c67
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 14:49:01 2026 +0530
+
+    Merge branch 'main' of https://github.com/kry86885/HospAI
+
+[33mcommit a33ee61deeb074201617a21f001aa25f9341fcc1[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 14:48:46 2026 +0530
+
+    Queue management & follow-up/Re-visit
+
+[33mcommit a418c67551acc027bb41da22d5302822d72cc312[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Tue Jul 14 14:42:13 2026 +0530
+
+    Updated due improvements
+
+[33mcommit 59839470e848e73bd5e0506494af82d3fa6379ea[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Tue Jul 14 12:34:08 2026 +0530
+
+    Apply latest patient module improvements
+
+[33mcommit 784b97d7c6a5383221db2f170308ea5f148d2196[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Tue Jul 14 12:32:07 2026 +0530
+
+    Fix RegistrationDesk merge conflicts
+
+[33mcommit 552e2e3e3133078244a1b65b580c8a6af4a1d614[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 12:25:42 2026 +0530
+
+    Queue MAnagement
+
+[33mcommit 6bd10317af49bb95b1c6a8b7936a441053363a6b[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 11:30:57 2026 +0530
+
+    fix: standardize mandatory field indicators, fix dashboard export links, and enhance Lab & Diagnostics Billing doctor/department autofill
+
+[33mcommit a1ad71c19187b9898a5be2b4e0c717c486af2333[m
+Merge: 0939c4a c590b85
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Tue Jul 14 10:23:46 2026 +0530
+
+    Merge recovery-latest-ui into main
+
+[33mcommit c590b85f07a97a76d5fce187a0b7348ef2e237f9[m[33m ([m[1;31morigin/recovery-latest-ui[m[33m)[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 17:55:09 2026 +0530
+
+    lab test & diagnostic(imaging) toggle
+
+[33mcommit 94ea5bb978c3653c8dd0d7cd6404fe85c0f7cca0[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 17:40:50 2026 +0530
+
+    enhanced patients
+
+[33mcommit 635bf608ab24629ba2f8340b584b0d1d361105e3[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 17:20:14 2026 +0530
+
+    enhanced logo & Patients
+
+[33mcommit dab9e94134b0ed4f38c1adf5bb7a35fe98e23c28[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 17:25:56 2026 +0530
+
+    Improve patient registration and OP modules
+
+[33mcommit 6849cc2ef08c1f9bf40802e5a637f7dbc120fa21[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 16:12:39 2026 +0530
+
+    patient regrestation  improvements
+
+[33mcommit c14aef7770bbda8e5c0da6f4795035661bae6067[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 16:09:08 2026 +0530
+
+    enhance follow-up workflow, patient registration, and certificate printing
+
+[33mcommit 0939c4a6625a432cfe72033078540591961d8f72[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 11:59:09 2026 +0530
+
+    Fix RegistrationDesk frontend build error
+
+[33mcommit 630720c14dda49c7bddefbf1feb2fce6284f7a92[m
+Merge: 1217350 7b80fd5
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 15:05:53 2026 +0530
+
+    Update HospAI department sectiom  improvements
+
+[33mcommit e72c9740f0b61b38c35b09f56539950dc1fdb145[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 14:45:06 2026 +0530
+
+    logo
+
+[33mcommit dac01795fcaf583397526ca668ab5d7821c01835[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 13:14:37 2026 +0530
+
+    queue management3
+
+[33mcommit 043556469190e5404ca230c1fdfe7ca599f816ff[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 12:23:31 2026 +0530
+
+    queue management1
+
+[33mcommit 1217350cecad78138a03edf3b1797b39847beab7[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 11:59:09 2026 +0530
+
+    Fix RegistrationDesk frontend build error
+
+[33mcommit 7b80fd58a999b02158dd28979891e18a8f76d06c[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 11:38:46 2026 +0530
+
+    Queue Management
+
+[33mcommit 915d911099cda7ec4dd6482b9ecab1b138daf889[m
+Merge: 9e35a29 a756b19
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 11:26:27 2026 +0530
+
+    Merge Pharmacy removal, Lab, Readmission, and latest HospAI updates
+    
+    Combines Pharmacy module removal, Lab & Diagnostics updates, Readmission updates, and the latest HospAI changes. Merge conflicts were resolved while keeping the feature branch versions of the dashboard and HMS module tests.
+
+[33mcommit a756b190649be34094a586aa7b3dce5f88105268[m[33m ([m[1;31morigin/feature/remove-pharmacy[m[33m)[m
+Merge: 57032bd 9e35a29
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 11:16:13 2026 +0530
+
+    Update main changes while keeping latest feature files
+
+[33mcommit 57032bdd18dd6035167463d4204eb1cad978d731[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 11:03:49 2026 +0530
+
+    Follw-up/Re-visit
+
+[33mcommit 6bc832db36ad3a715d2b74f107315892c6c9d473[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Mon Jul 13 10:55:11 2026 +0530
+
+    Lab & Diagnostics
+
+[33mcommit 75e7c2ad745f8943ef52338ad6234db7218686df[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Mon Jul 13 10:13:18 2026 +0530
+
+    Remove Pharmacy module from active application
+
+[33mcommit 9e35a2946d4512f2ded2bb886166d90699d7b36f[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Sat Jul 11 10:58:38 2026 +0530
+
+    PatientRegistration
+
+[33mcommit 04636c8a5c356ec0ccf1bc017d022756d87e082f[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Fri Jul 10 15:36:48 2026 +0530
+
+    Patients
+
+[33mcommit a2de3a37cf2969d8bd893b0ce46b7de7f0cb243b[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Fri Jul 10 14:39:18 2026 +0530
+
+    Dashboard
+
+[33mcommit a42a7e4a2d5effec72ff2a597374f44a95128c76[m
+Author: MankalaBhavana <mankalabhavana@gmail.com>
+Date:   Fri Jul 10 12:45:01 2026 +0530
+
+    DoctorScheduling
+
+[33mcommit 565f7c2fbdf29c2f637feea57feb3bc0bbe9d9a1[m
+Author: kry86885 <kry86885@gmail.com>
+Date:   Fri Jul 10 12:10:15 2026 +0530
+
+    Re
