@@ -608,14 +608,6 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
 
   return (
     <section className="module-page op-queue-page">
-<<<<<<< HEAD
-      <div className="op-queue-header">
-        <div className="op-queue-title-wrap">
-          <div className="op-queue-brand"><BrandLogo className="brand-logo-img" /></div>
-          <div>
-              <h2>OP Queue Management</h2>
-              <p>Manage OP patient queue and consult status</p>
-=======
       <div className="op-queue-header-banner">
         <div className="op-queue-banner-left">
           <div className="op-queue-banner-icon-bg">
@@ -624,7 +616,6 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
           <div className="op-queue-banner-text">
             <h2>OP Queue Management</h2>
             <p>Manage OP patient queue and consult status</p>
->>>>>>> 5f5a4a1 (Update latest HospAI op queue improvements)
           </div>
         </div>
         <div className="op-queue-banner-right">

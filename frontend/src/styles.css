@@ -4113,14 +4113,6 @@ main {
 .purple-action { background:linear-gradient(135deg,#7c3aed,#9333ea) !important; color:#fff !important; }
 .green-action { background:#10b981 !important; color:#fff !important; }
 .yellow-action { background:#fbbf24 !important; color:#111827 !important; }
-<<<<<<< HEAD
-.queue-filters-card { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:12px; padding:12px 12px; margin-bottom:10px; align-items:start; }
-.op-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:10px 12px; }
-.op-filter-grid label, .clinical-panel label, .print-slip-grid label { display:grid; gap:7px; color:#334155; font-size:13px; font-weight:800; }
-.op-filter-grid label {
-  grid-template-rows:auto 38px;
-  align-items:start;
-=======
 /* OP Queue Page Header Banner */
 .op-queue-header-banner {
   display: flex;
@@ -4132,7 +4124,6 @@ main {
   margin-bottom: 20px;
   color: #ffffff;
   box-shadow: 0 10px 25px rgba(79, 70, 229, 0.15);
->>>>>>> 5f5a4a1 (Update latest HospAI op queue improvements)
 }
 .op-queue-banner-left {
   display: flex;
@@ -4151,40 +4142,11 @@ main {
 .op-queue-banner-icon {
   font-size: 24px;
 }
-<<<<<<< HEAD
-.op-search-label { grid-column:auto; }
-.queue-summary-box { background:#eff6ff; border-radius:8px; padding:14px 16px; }
-.queue-summary-box h3 { color:#1d4ed8; margin:0 0 12px; font-size:16px; line-height:1.3; }
-.queue-summary-box p { display:flex; justify-content:space-between; margin:12px 0; color:#1e3a8a; font-size:13px; }
-.queue-summary-box .green { color:#10b981; } .queue-summary-box .orange { color:#f97316; } .queue-summary-box .blue { color:#2563eb; }
-
-/* New KPI cards and compact queue card styles */
-.op-queue-page .queue-summary-box { width:100%; margin-top:16px; }
-.op-queue-page .kpi-cards { display:flex; gap:14px; flex-wrap:wrap; align-items:stretch; overflow-x:auto; padding-bottom:4px; }
-.op-queue-page .kpi-cards::-webkit-scrollbar { height: 8px; }
-.op-queue-page .kpi-cards::-webkit-scrollbar-thumb { background: rgba(15, 96, 161, 0.18); border-radius: 999px; }
-.op-queue-page .kpi-card { background:#fff; border:1px solid #e5e7eb; padding:12px; border-radius:12px; min-width:120px; width:min(150px,100%); min-height:68px; box-shadow:0 8px 20px rgba(15,23,42,0.04); display:grid; gap:6px; transition:transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
-.op-queue-page .kpi-card:hover { transform: translateY(-2px); box-shadow:0 20px 36px rgba(15,23,42,0.1); border-color: rgba(59,130,246,0.22); }
-.op-queue-page .kpi-card .kpi-icon { font-size:18px; }
-.op-queue-page .kpi-card .kpi-label { font-size:13px; color:#475569; font-weight:700; letter-spacing:0.01em; }
-.op-queue-page .kpi-card .kpi-value { font-size:26px; font-weight:800; color:#0f172a; line-height:1; }
-.op-queue-page .kpi-card.kpi-tokens { background:linear-gradient(180deg,#eff6ff,#ffffff); border-color:#bfdbfe; }
-.op-queue-page .kpi-card.kpi-waiting { background:linear-gradient(180deg,#fff7ed,#ffffff); border-color:#fed7aa; }
-.op-queue-page .kpi-card.kpi-consult { background:linear-gradient(180deg,#f5f3ff,#ffffff); border-color:#d8b4fe; }
-.op-queue-page .kpi-card.kpi-completed { background:linear-gradient(180deg,#ecfdf5,#ffffff); border-color:#a7f3d0; }
-.op-queue-page .kpi-card.kpi-upcoming { background:linear-gradient(180deg,#ecfeff,#ffffff); border-color:#67e8f9; }
-.op-queue-page .kpi-card.kpi-doctors { background:linear-gradient(180deg,#eef2ff,#ffffff); border-color:#c7d2fe; }
-.op-queue-page .kpi-card.kpi-followups { background:linear-gradient(180deg,#f0fdfa,#ffffff); border-color:#6ee7b7; }
-.op-queue-page .kpi-card.kpi-active { background:linear-gradient(180deg,#e0f2fe,#ffffff); border-color:#7dd3fc; }
-@media (max-width: 1150px) {
-  .op-queue-page .kpi-cards { gap:12px; }
-=======
 .op-queue-banner-text h2 {
   font-size: 22px;
   font-weight: 800;
   color: #ffffff;
   margin: 0 0 4px;
->>>>>>> 5f5a4a1 (Update latest HospAI op queue improvements)
 }
 .op-queue-banner-text p {
   font-size: 14px;
@@ -4226,26 +4188,6 @@ main {
   background: #059669;
 }
 
-<<<<<<< HEAD
-.queue-board { display:flex; gap:10px; margin-top:8px; overflow-x:auto; padding-bottom:6px; }
-.queue-board-column { background:#fbfcfe; border:1px solid #e6e9ee; padding:8px; border-radius:8px; min-height:100px; flex:0 0 280px; }
-.queue-board-item { background:#ffffff; border:1px solid #eef2f7; padding:8px; border-radius:8px; margin-bottom:8px; cursor:pointer; }
-.queue-board-item.selected { box-shadow:0 4px 12px rgba(12,74,110,0.06); border-color:#cfe8ff; }
-.queue-card-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
-.queue-token { display:flex; gap:8px; align-items:center; }
-.queue-token .visit-type { font-size:12px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:6px; }
-.queue-board-item-name { font-weight:700; margin-bottom:8px; }
-.queue-board-item-details { display:grid; grid-template-columns: repeat(2, 1fr); gap:6px 10px; font-size:12px; color:#334155; margin-bottom:8px; }
-.queue-board-item-details small { display:block; color:#64748b; font-weight:700; margin-bottom:3px; font-size:11px; }
-.queue-card-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.queue-card-actions button { padding:6px 8px; border-radius:6px; border:1px solid #e6e9ee; background:#fff; font-size:13px; }
-.queue-card-actions .action-start { background:#ecfdf5; border-color:#bbf7d0; }
-.queue-card-actions .action-complete { background:#eff6ff; border-color:#bfdbfe; }
-.queue-card-actions .action-hold { background:#fff7ed; border-color:#ffedd5; }
-.queue-card-actions .action-transfer { background:#f8fafc; border-color:#e6e9ee; }
-.queue-card-actions .action-cancel { background:#fff1f2; border-color:#fbcfe8; }
-.queue-card-actions .action-print { background:#f8fafc; }
-=======
 /* Full Width Filters */
 .queue-filters-card-full {
   padding: 20px;
@@ -4296,7 +4238,6 @@ main {
 .filter-clear-btn:hover {
   background-color: #f1f5f9;
 }
->>>>>>> 5f5a4a1 (Update latest HospAI op queue improvements)
 
 /* Full Width KPI cards */
 .kpi-cards-row {
