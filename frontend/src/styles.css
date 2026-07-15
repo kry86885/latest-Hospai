@@ -5587,10 +5587,13 @@ main {
   align-items: center;
 }
 .sidebar .brand .brand-logo-img {
-  width: 112px;
-  height: 94px;
+  width: 100% !important;
+  height: auto !important;
   max-width: 100%;
+  max-height: 140px;
   object-fit: contain;
+  display: block;
+  padding: 8px 12px;
 }
 .sidebar .brand .brand-title {
   display: none;

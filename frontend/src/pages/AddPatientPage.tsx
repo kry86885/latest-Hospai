@@ -539,6 +539,22 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [appointment.department, doctorOptions, doctorScheduleOptions]);
 
+  const doctorsAvailableByDate = useMemo(() => {
+    if (!appointment.appointmentDateTime) return doctorOptions;
+    const selectedDate = String(appointment.appointmentDateTime).split("T")[0];
+    const names = new Set<string>();
+    doctorScheduleOptions.forEach((item) => {
+      const sd = String((item as any).schedule_date || "").split("T")[0];
+      if (!sd) return;
+      if (sd === selectedDate) {
+        const name = String(item.doctor_name || "").trim();
+        if (name) names.add(name);
+      }
+    });
+    const list = Array.from(names).sort((a, b) => a.localeCompare(b));
+    return list.length ? list : [];
+  }, [appointment.appointmentDateTime, doctorScheduleOptions, doctorOptions]);
+
   const getConsultationFeeForDoctor = (doctorName: string, appointmentKind: string): number | undefined => {
     const schedule = doctorScheduleByDoctor.get(String(doctorName ?? "").trim());
     if (!schedule) return undefined;
@@ -603,6 +619,20 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
     const consultationFee = Number.isFinite(resolvedFee) ? resolvedFee : 0;
     if (!patientName || !appointmentDate) {
       setNotice({ type: "error", message: "Patient name and appointment date/time are required to generate token." });
+      return;
+    }
+    // Enforce doctor schedule for selected appointment date
+    const selectedDateForCheck = String(appointmentDate).split("T")[0];
+    const doctorsOnDate = doctorScheduleOptions
+      .filter((item) => String((item as any).schedule_date || "").split("T")[0] === selectedDateForCheck)
+      .map((item) => String(item.doctor_name || "").trim())
+      .filter(Boolean);
+    if (appointment.doctor && !doctorsOnDate.includes(appointment.doctor)) {
+      setNotice({ type: "error", message: "Only allow doctors who have an active schedule for the selected appointment date." });
+      return;
+    }
+    if (!appointment.doctor && doctorsOnDate.length === 0) {
+      setNotice({ type: "error", message: "No doctors are scheduled for the selected appointment date." });
       return;
     }
     if (!Number.isFinite(consultationFee) || consultationFee <= 0) {
@@ -682,6 +712,21 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
           consultationFee: resolvedFee !== undefined ? String(resolvedFee) : prev.consultationFee,
         };
       }
+
+        if (field === "appointmentDateTime") {
+          const dateVal = String(value || "");
+          const selectedDate = dateVal.split("T")[0];
+          const doctorsOnDate = doctorScheduleOptions
+            .filter((item) => String((item as any).schedule_date || "").split("T")[0] === selectedDate)
+            .map((item) => String(item.doctor_name || "").trim())
+            .filter(Boolean);
+          const doctorIsValid = !prev.doctor || doctorsOnDate.length === 0 || doctorsOnDate.includes(prev.doctor);
+          return {
+            ...prev,
+            appointmentDateTime: value,
+            doctor: doctorIsValid ? prev.doctor : "",
+          };
+        }
 
       if (field === "appointmentKind") {
         const selectedDoctor = String(prev.doctor).trim();

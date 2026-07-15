@@ -183,6 +183,10 @@ export default function LabPage({ setNotice }: Props) {
     ? Number(paidAmount || 0) + Number(payingDueAmount || 0)
     : Number(paidAmount || 0);
   const balanceAmount = grandTotal - totalPaidAfterUpdate;
+  // Live payment calculations for change / remaining due
+  const cashReceived = Number(paidAmount || 0) + Number(payingDueAmount || 0);
+  const changeReturnedLive = Math.max(cashReceived - grandTotal, 0);
+  const remainingDueLive = Math.max(grandTotal - cashReceived, 0);
 
 
   const loadDiagnostics = async () => {
@@ -252,6 +256,23 @@ export default function LabPage({ setNotice }: Props) {
     else setDiagnosticItems((current) => [...current, nextItem]);
     setSearch("");
     setNotice({ type: "success", message: "Blank service row added. Enter service details to continue." });
+  };
+
+  const renderChangeOrRemaining = () => {
+    if (changeReturnedLive > 0) {
+      return (
+        <div className="billing-change-row">
+          <strong>Change Returned:</strong>
+          <span>₹{formatAmount(changeReturnedLive)}</span>
+        </div>
+      );
+    }
+    return (
+      <div className="billing-remaining-row">
+        <strong>Remaining Due:</strong>
+        <span>₹{formatAmount(remainingDueLive)}</span>
+      </div>
+    );
   };
 
   const updateItem = (type: "lab" | "diagnostic", index: number, key: keyof ServiceItem, value: string) => {
@@ -433,6 +454,8 @@ export default function LabPage({ setNotice }: Props) {
     const recordGrandTotal = recordGrossAmount - recordDiscountAmount + recordTaxAmount;
     const recordPaidAmount = record.paid_amount || 0;
     const recordBalanceAmount = record.due_amount || 0;
+    const recordChange = Math.max(Number(recordPaidAmount || 0) - Number(recordGrandTotal || 0), 0);
+    const recordRemaining = Math.max(Number(recordGrandTotal || 0) - Number(recordPaidAmount || 0), 0);
 
     const html = `
       <!doctype html>
@@ -532,7 +555,11 @@ export default function LabPage({ setNotice }: Props) {
             <section class="journey-print-section"><h2>Patient Information</h2><div class="journey-print-grid">${row("Patient Name", recordPatientName)}${row("UHID / Patient ID", recordPatientUhid)}${row("Age / Gender", `${recordPatientAge || "-"} / ${recordPatientGender || "-"}`)}${row("Department", recordDepartment || "-")}${row("Doctor", recordDoctorName || "-")}</div></section>
             <section class="journey-print-section"><h2>Bill Summary</h2><div class="journey-print-grid four">${row("Total Billed", `₹${formatAmount(recordGrandTotal)}`)}${row("Total Paid", `₹${formatAmount(Number(recordPaidAmount || 0))}`)}${row("Total Due", `₹${formatAmount(Math.max(recordBalanceAmount, 0))}`)}${row("Tests / Services", 1)}</div></section>
             <section class="journey-print-section"><h2>Test-wise Payment Details</h2><table class="journey-print-table"><thead><tr><th>#</th><th>Type</th><th>Code</th><th>Test</th><th>Category</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${serviceRows}</tbody></table></section>
-            <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", record.bill_date || "-")}${row("Due Date", record.due_date || "-")}${row("Payment Mode", record.payment_mode || "-")}${row("Transaction ID", record.transaction_id || "-")}${row("Discount", `₹${formatAmount(recordDiscountAmount)}`)}${row("Tax", `₹${formatAmount(recordTaxAmount)}`)}${row("Report Delivery", record.report_delivery_mode || "-")}${row("Delivery Date", record.report_delivery_date || "-")}</div></section>
+            <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", record.bill_date || "-")}${row("Due Date", record.due_date || "-")}${row("Payment Mode", record.payment_mode || "-")}${row("Transaction ID", record.transaction_id || "-")}${row("Discount", `₹${formatAmount(recordDiscountAmount)}`)}${row("Tax", `₹${formatAmount(recordTaxAmount)}`)}${row("Report Delivery", record.report_delivery_mode || "-")}${row("Delivery Date", record.report_delivery_date || "-")}</div>
+              <div style="padding:8px;border-top:1px solid #111827;background:#fff;">
+                ${recordChange > 0 ? `<div><strong>Change Returned:</strong> ₹${formatAmount(recordChange)}</div>` : `<div><strong>Remaining Due:</strong> ₹${formatAmount(recordRemaining)}</div>`}
+              </div>
+            </section>
             <section class="journey-print-section"><h2>Remarks</h2><div class="journey-print-notes">${safeText(record.remarks || "-")}</div></section>
             <div class="journey-print-signatures"><div>Patient / Guardian</div><div>Prepared By</div><div>Authorized Signatory</div></div>
           </main>
@@ -715,6 +742,8 @@ export default function LabPage({ setNotice }: Props) {
       }).join("");
 
       const recordGrandTotal = totalGrossAmount - totalDiscountAmount + totalTaxAmount;
+      const recordChange = Math.max(Number(totalPaidAmount || 0) - Number(recordGrandTotal || 0), 0);
+      const recordRemaining = Math.max(Number(recordGrandTotal || 0) - Number(totalPaidAmount || 0), 0);
 
       // Unique billing fields across records for display
       const billDates = Array.from(new Set(groupRecords.map(r => r.bill_date).filter(Boolean))).join(", ") || "-";
@@ -747,7 +776,9 @@ export default function LabPage({ setNotice }: Props) {
           <section class="journey-print-section"><h2>Patient Information</h2><div class="journey-print-grid">${row("Patient Name", recordPatientName)}${row("UHID / Patient ID", recordPatientUhid)}${row("Age / Gender", `${recordPatientAge || "-"} / ${recordPatientGender || "-"}`)}${row("Department", recordDepartment)}${row("Doctor", recordDoctorName)}</div></section>
           <section class="journey-print-section"><h2>Bill Summary</h2><div class="journey-print-grid four">${row("Total Billed", `₹${formatAmount(recordGrandTotal)}`)}${row("Total Paid", `₹${formatAmount(Number(totalPaidAmount || 0))}`)}${row("Total Due", `₹${formatAmount(Math.max(totalBalanceAmount, 0))}`)}${row("Tests / Services", groupRecords.length)}</div></section>
           <section class="journey-print-section"><h2>Test-wise Payment Details</h2><table class="journey-print-table"><thead><tr><th>#</th><th>Type</th><th>Code</th><th>Test</th><th>Category</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${serviceRows}</tbody></table></section>
-          <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", billDates)}${row("Due Date", dueDates)}${row("Payment Mode", paymentModes)}${row("Transaction ID", transactionIds)}${row("Discount", `₹${formatAmount(totalDiscountAmount)}`)}${row("Tax", `₹${formatAmount(totalTaxAmount)}`)}${row("Report Delivery", reportDeliveries)}${row("Delivery Date", reportDeliveryDates)}</div></section>
+          <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", billDates)}${row("Due Date", dueDates)}${row("Payment Mode", paymentModes)}${row("Transaction ID", transactionIds)}${row("Discount", `₹${formatAmount(totalDiscountAmount)}`)}${row("Tax", `₹${formatAmount(totalTaxAmount)}`)}${row("Report Delivery", reportDeliveries)}${row("Delivery Date", reportDeliveryDates)}</div>
+            <div style="padding:8px;border-top:1px solid #111827;background:#fff;">${recordChange > 0 ? `<div><strong>Change Returned:</strong> ₹${formatAmount(recordChange)}</div>` : `<div><strong>Remaining Due:</strong> ₹${formatAmount(recordRemaining)}</div>`}</div>
+          </section>
           <section class="journey-print-section"><h2>Remarks</h2><div class="journey-print-notes">${safeText(remarksStr)}</div></section>
           <div class="journey-print-signatures"><div>Patient / Guardian</div><div>Prepared By</div><div>Authorized Signatory</div></div>
         </div>
@@ -966,7 +997,16 @@ export default function LabPage({ setNotice }: Props) {
             <section class="journey-print-section"><h2>Patient Information</h2><div class="journey-print-grid">${row("Patient Name", patientName)}${row("UHID / Patient ID", patientUhid)}${row("Age / Gender", `${patientAge || "-"} / ${patientGender || "-"}`)}${row("Department", department || "-")}${row("Doctor", doctorName || "-")}</div></section>
             <section class="journey-print-section"><h2>Bill Summary</h2><div class="journey-print-grid four">${row("Total Billed", `₹${formatAmount(grandTotal)}`)}${row("Total Paid", `₹${formatAmount(Number(paidAmount || 0))}`)}${row("Total Due", `₹${formatAmount(Math.max(balanceAmount, 0))}`)}${row("Tests / Services", items.length)}</div></section>
             <section class="journey-print-section"><h2>Test-wise Payment Details</h2><table class="journey-print-table"><thead><tr><th>#</th><th>Type</th><th>Code</th><th>Test</th><th>Category</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${serviceRows}</tbody></table></section>
-            <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", billDate || "-")}${row("Due Date", dueDate || "-")}${row("Payment Mode", paymentMode || "-")}${row("Transaction ID", transactionId || "-")}${row("Discount", `₹${formatAmount(discountAmount)}`)}${row("Tax", `₹${formatAmount(taxAmount)}`)}${row("Report Delivery", reportDeliveryMode || "-")}${row("Delivery Date", reportDeliveryDate || "-")}</div></section>
+            <section class="journey-print-section"><h2>Payment & Billing Information</h2><div class="journey-print-grid four">${row("Bill Date", billDate || "-")}${row("Due Date", dueDate || "-")}${row("Payment Mode", paymentMode || "-")}${row("Transaction ID", transactionId || "-")}${row("Discount", `₹${formatAmount(discountAmount)}`)}${row("Tax", `₹${formatAmount(taxAmount)}`)}${row("Report Delivery", reportDeliveryMode || "-")}${row("Delivery Date", reportDeliveryDate || "-")}</div>
+              <div style="padding:8px;border-top:1px solid #111827;background:#fff;">
+                ${(() => {
+                  const cashReceivedPrint = Number(paidAmount || 0) + Number(payingDueAmount || 0);
+                  const changeReturnedPrint = Math.max(cashReceivedPrint - Number(grandTotal || 0), 0);
+                  const remainingDuePrint = Math.max(Number(grandTotal || 0) - cashReceivedPrint, 0);
+                  return changeReturnedPrint > 0 ? `<div><strong>Change Returned:</strong> ₹${formatAmount(changeReturnedPrint)}</div>` : `<div><strong>Remaining Due:</strong> ₹${formatAmount(remainingDuePrint)}</div>`;
+                })()}
+              </div>
+            </section>
             <section class="journey-print-section"><h2>Remarks</h2><div class="journey-print-notes">${safeText(remarks || billNotes || "-")}</div></section>
             <div class="journey-print-signatures"><div>Patient / Guardian</div><div>Prepared By</div><div>Authorized Signatory</div></div>
           </main>
@@ -1175,6 +1215,10 @@ export default function LabPage({ setNotice }: Props) {
                 aria-label="Remarks"
               />
             </div>
+          </div>
+
+          <div className="lab-change-remaining">
+            {renderChangeOrRemaining()}
           </div>
 
           {/* 2. SELECT SERVICES */}
