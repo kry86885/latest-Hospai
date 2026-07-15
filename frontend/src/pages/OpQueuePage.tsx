@@ -81,18 +81,13 @@ export default function OpQueuePage({ setNotice, onOpenPatient }: Props) {
   const loadQueueFromPatients = async () => {
     try {
       const appointmentDateQuery = visitDateFilter ? `?date=${encodeURIComponent(visitDateFilter)}&visit_type=OP` : "?visit_type=OP";
-      // For the doctor/department filter dropdowns in the queue, fetch schedules
-      // for the current visit date only (status=available). This avoids showing
-      // doctors from other dates in the filter selectors.
-      const scheduleQuery = visitDateFilter
-        ? `/api/op/doctor-schedules?date=${encodeURIComponent(visitDateFilter)}&status=available`
-        : "/api/op/doctor-schedules?status=available";
       const [data, departmentData, scheduleData, summaryData] = await Promise.all([
         apiFetch<{ appointments?: Array<any> }>(`/api/appointments${appointmentDateQuery}`),
         apiFetch<{ departments?: DepartmentOption[] }>("/api/registration/departments").catch(() => ({ departments: [] as DepartmentOption[] })),
-        apiFetch<{ schedules?: DoctorScheduleOption[] }>(scheduleQuery).catch(() => ({ schedules: [] as DoctorScheduleOption[] })),
+        apiFetch<{ schedules?: DoctorScheduleOption[] }>("/api/op/doctor-schedules").catch(() => ({ schedules: [] as DoctorScheduleOption[] })),
         apiFetch<OpSummary>(`/api/op/summary?date=${encodeURIComponent(visitDateFilter)}`).catch(() => null),
       ]);
+
 
       const readmitQueue = JSON.parse(localStorage.getItem("hospai_op_queue") || "[]");
       const readmitEntries = (Array.isArray(readmitQueue) ? readmitQueue : [])

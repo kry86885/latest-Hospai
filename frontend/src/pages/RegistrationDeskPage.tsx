@@ -268,12 +268,16 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     try {
       // When a specific appointment date is chosen, only show doctors with an
       // 'available' schedule on that exact date. When no date is provided (e.g.
-      // on initial mount before the user has picked a date), fall back to all
-      // schedules so the datalist is not empty from the start.
-      const params = new URLSearchParams();
-      params.set("status", "available");
-      if (forDate) params.set("date", forDate);
-      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; start_time?: string | null; end_time?: string | null }[] }>(`/api/op/doctor-schedules?${params.toString()}`);
+      // on initial mount before the user has picked a date), fetch all schedules
+      // so the datalist is populated from the start (identical to original behavior).
+      let url = "/api/op/doctor-schedules";
+      if (forDate) {
+        const params = new URLSearchParams();
+        params.set("status", "available");
+        params.set("date", forDate);
+        url = `/api/op/doctor-schedules?${params.toString()}`;
+      }
+      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; start_time?: string | null; end_time?: string | null }[] }>(url);
       const names = new Set<string>();
       const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
       (scheduleData.schedules || []).forEach((row) => {
@@ -333,18 +337,6 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointmentForm.appointment_date]);
 
-  // When the available doctor list changes (e.g. date was changed and we
-  // re-fetched), clear the selected doctor if they are no longer in the list
-  // so we don't silently book with an unavailable/unscheduled doctor.
-  useEffect(() => {
-    if (!appointmentForm.doctor_name) return;
-    if (doctorSuggestions.length === 0) return; // list not yet loaded — keep current value
-    if (!doctorSuggestions.includes(appointmentForm.doctor_name)) {
-      setAppointmentForm((prev) => ({ ...prev, doctor_name: "", consultation_fee: "" }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doctorSuggestions]);
-
   const filteredDoctorSuggestions = useMemo(() => {
     if (!appointmentForm.department) return doctorSuggestions;
     return doctorSuggestions.filter((name) => {
@@ -352,6 +344,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       return info?.department === appointmentForm.department;
     });
   }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
+
 
 
   const resolveAppointmentFee = (doctorName: string, appointmentKind: string) => {
