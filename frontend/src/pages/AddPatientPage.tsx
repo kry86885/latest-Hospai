@@ -1180,8 +1180,8 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
   return (
     <section className="form-layout patient-registration-module">
       <div className="panel patient-registration-card">
-        <h3>Patient Registration</h3>
-        <p className="muted">Patient ID: {patientId || "Will be generated on save"}</p>
+        <span style={{ display: "none" }}>Patient Registration</span>
+        <p className="muted" style={{ fontWeight: "bold", marginBottom: "1rem" }}>Patient ID: {patientId || "Will be generated on save"}</p>
         {duplicateInfo && <Alert variant="warning">Possible duplicate found: {duplicateInfo.name} {duplicateInfo.last_name} (ID: {duplicateInfo.patient_id})</Alert>}
         {matchedPatients.length > 0 && <Alert variant="warning">Existing matching profile found: {matchedPatients[0].patient_id} · {matchedPatients[0].name} {matchedPatients[0].last_name} · {matchedPatients[0].phone || "No phone"}</Alert>}
         <form id={registrationFormId} className="grid-form patient-grid-form exact-patient-form" onSubmit={handleSubmit}>

@@ -549,7 +549,6 @@ export default function DashboardPage({
     { module: "Patient Journey", icon: "🗺️", count: stats.total || 0, completed: stats.total || 0, pending: 0 },
     { module: "Doctor Consultation", icon: "🩺", ...consultationOps },
     { module: "Billing", icon: "🧾", ...billingOps },
-    { module: "Payment Collection", icon: "💳", ...paymentCollectionOps },
     { module: "Revenue Reporting", icon: "📊", ...revenueReportingOps },
     { module: "Doctor Payout", icon: "👨‍⚕️", ...doctorPayoutOps },
   ];
@@ -559,8 +558,8 @@ export default function DashboardPage({
     if (module.includes("Queue")) return "op-queue-management";
     if (module.includes("Journey")) return "patient-journey";
     if (module.includes("Consultation")) return "op-desk";
-    if (module.includes("Billing")) return "billing-record-payment";
-    if (module.includes("Payment")) return "billing-record-payment";
+    if (module.includes("Billing")) return "billing-module-collections";
+    if (module.includes("Payment")) return "billing-module-collections";
     if (module.includes("Payout")) return "accounts-doctor-payouts";
     return "reports";
   };
@@ -717,7 +716,6 @@ export default function DashboardPage({
                 { label: "Doctor Scheduling", icon: "🩺", page: "op-desk" },
                 { label: "Re-visit", icon: "🔄", page: "readmit" },
                 { label: "Lab & Diagnostic Billing", icon: "🧪", page: "lab" },
-                { label: "Payment Collection", icon: "💳", page: "billing-record-payment" },
                 { label: "Revenue Reports", icon: "📊", page: "billing-module-collections" },
               ].map((action) => (
                 <button
@@ -782,7 +780,7 @@ export default function DashboardPage({
                 { label: "Pending Payments", icon: "⚠️", value: dueRevenue },
                 { label: "Doctor Payout Ready", icon: "👨‍⚕️", value: doctorPayoutReady },
               ].map((row) => (
-                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-record-payment")}>
+                <button key={row.label} type="button" className="hosp-rev-row hosp-table-click" onClick={() => go(row.label.includes("Lab") ? "lab" : row.label.includes("Doctor") ? "accounts-doctor-payouts" : row.label.includes("IPD") ? "patients" : "billing-module-collections")}>
                   <span className="hosp-rev-icon">{row.icon}</span>
                   <span className="hosp-rev-label">{row.label}</span>
                   <span className="hosp-rev-value">{formatCurrencyShort(row.value)}</span>
@@ -804,12 +802,12 @@ export default function DashboardPage({
         <Card className="panel hosp-section-card">
           <CardHeader style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <CardTitle>Payment Summary (Today)</CardTitle>
-            <button className="hosp-view-all" onClick={() => go("billing-record-payment")}>View Details</button>
+            <button className="hosp-view-all" onClick={() => go("billing-module-collections")}>View Details</button>
           </CardHeader>
           <CardContent>
             <div className="hosp-pay-list">
               {paymentSummaryRows.map((row) => (
-                <button key={row.label} type="button" className="hosp-pay-row hosp-table-click" onClick={() => go("billing-record-payment")}>
+                <button key={row.label} type="button" className="hosp-pay-row hosp-table-click" onClick={() => go("billing-module-collections")}>
                   <span className="hosp-pay-icon">💳</span>
                   <span className="hosp-pay-label">{row.label}</span>
                   <span className="hosp-pay-value">{formatCurrencyShort(row.count)}</span>

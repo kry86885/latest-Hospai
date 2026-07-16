@@ -148,13 +148,12 @@ describe("App role-based UI", () => {
       await flush();
     });
 
-    const billingTab = Array.from(container.querySelectorAll("button")).find((el) => el.textContent?.trim() === "Payment Collection") as HTMLButtonElement;
+    const billingTab = Array.from(container.querySelectorAll("button")).find((el) => el.textContent?.trim() === "Revenue Reports") as HTMLButtonElement;
     const patientsTab = Array.from(container.querySelectorAll("button")).find((el) => el.textContent?.trim() === "Patients") as HTMLButtonElement;
 
     expect(billingTab).toBeTruthy();
     expect(billingTab.disabled).toBe(false);
     expect(patientsTab).toBeFalsy();
-    expect(container.textContent).toContain("Payment Collection");
     expect(container.textContent).toContain("Revenue Reports");
   });
 

@@ -1089,13 +1089,6 @@ export default function LabPage({ setNotice }: Props) {
 
   return (
     <section className="module-page lab-billing-page">
-      <div className="lab-page-header compact-lab-header">
-        <div className="lab-header-icon">📋</div>
-        <div>
-          <h2>Lab & Diagnostic Billing Process</h2>
-        </div>
-      </div>
-
       <div className="lab-layout single-column-lab">
         <div className="lab-card lab-services-card provided-services-card">
           

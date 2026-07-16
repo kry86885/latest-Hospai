@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import StatCard from "../components/StatCard";
-import { Input, Label } from "../components/ui";
+import { Input, Label, Modal, Table, TableCell, TableHead, TableRow } from "../components/ui";
 import { apiFetch, reportError } from "../lib/api";
+import { formatDateTime } from "../lib/format";
 import type { Notice, ReportsOverview } from "../types";
 
 type Props = {
@@ -36,6 +37,43 @@ export default function ReportsPage({ setNotice }: Props) {
   const [selectedReportDate, setSelectedReportDate] = useState(() => toDateInputValue(new Date()));
   const [datedBillingSummary, setDatedBillingSummary] = useState<BillingReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<{ type: "module" | "payment_mode"; value: string } | null>(null);
+  const [historyData, setHistoryData] = useState<Array<{
+    patient_id: string;
+    patient_name: string;
+    date: string;
+    source: string;
+    reference: string;
+    amount: number;
+    payment_mode: string;
+  }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    if (!historyFilter) return;
+    let active = true;
+    const loadHistory = async () => {
+      setHistoryLoading(true);
+      try {
+        const url = `/api/reports/patient-history?type=${historyFilter.type}&value=${encodeURIComponent(historyFilter.value)}&date=${encodeURIComponent(selectedReportDate || "")}`;
+        const data = await apiFetch<any[]>(url);
+        if (active) setHistoryData(data);
+      } catch (error) {
+        if (active) {
+          reportError(setNotice, error as { message?: string; status?: number }, "Unable to load patient history.");
+          setHistoryData([]);
+        }
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    };
+    void loadHistory();
+    return () => {
+      active = false;
+    };
+  }, [historyFilter, selectedReportDate, setNotice]);
 
   useEffect(() => {
     const load = async () => {
@@ -97,11 +135,7 @@ export default function ReportsPage({ setNotice }: Props) {
 
   return (
     <section className="module-page revenue-reports-page">
-      <div className="module-panel-head revenue-reports-title">
-        <div>
-          <h3>Revenue Reports</h3>
-        </div>
-      </div>
+      <span style={{ display: "none" }}>Revenue Reports</span>
 
       <div className="revenue-reports-subhead">
         <h3>Collections by Module</h3>
@@ -147,7 +181,14 @@ export default function ReportsPage({ setNotice }: Props) {
         ) : (
           <div className="revenue-module-bars">
             {collectionsByModule.map((row) => (
-              <div key={row.label} className="revenue-module-bar-row">
+              <div
+                key={row.label}
+                className="revenue-module-bar-row"
+                onClick={() => {
+                  setHistoryFilter({ type: "module", value: row.label });
+                  setHistoryModalOpen(true);
+                }}
+              >
                 <span>{row.label}</span>
                 <div className="revenue-module-bar-track">
                   <div className="revenue-module-bar-fill" style={{ width: `${Number(row.count || 0) <= 0 ? 0 : Math.max(4, (Number(row.count || 0) / maxModuleCollectionValue) * 100)}%` }} />
@@ -168,7 +209,14 @@ export default function ReportsPage({ setNotice }: Props) {
         ) : (
           <div className="revenue-module-bars">
             {paymentMethodRows.map((row) => (
-              <div key={row.label} className="revenue-module-bar-row">
+              <div
+                key={row.label}
+                className="revenue-module-bar-row"
+                onClick={() => {
+                  setHistoryFilter({ type: "payment_mode", value: row.label });
+                  setHistoryModalOpen(true);
+                }}
+              >
                 <span>{row.label}</span>
                 <div className="revenue-module-bar-track">
                   <div className="revenue-module-bar-fill payment-method-fill" style={{ width: `${Number(row.count || 0) <= 0 ? 0 : Math.max(4, (Number(row.count || 0) / maxPaymentMethodValue) * 100)}%` }} />
@@ -211,6 +259,64 @@ export default function ReportsPage({ setNotice }: Props) {
           </div>
         )}
       </div>
+
+      <Modal
+        open={historyModalOpen}
+        onClose={() => {
+          setHistoryModalOpen(false);
+          setHistoryFilter(null);
+          setHistoryData([]);
+        }}
+        title={`Patient History - ${historyFilter?.value || ""}`}
+        description={`Showing patient records for ${selectedReportDate}`}
+        className="revenue-history-modal"
+      >
+        {historyLoading ? (
+          <p className="muted" style={{ padding: "1rem 0" }}>Loading patient details...</p>
+        ) : historyData.length === 0 ? (
+          <p className="muted" style={{ padding: "1rem 0" }}>No patient history found for this selection.</p>
+        ) : (
+          <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            <Table className="module-table module-table-history" aria-label="Transaction history table">
+              <TableHead>
+                <TableCell>Date & Time</TableCell>
+                <TableCell>Patient ID</TableCell>
+                <TableCell>Patient Name</TableCell>
+                <TableCell>Reference</TableCell>
+                <TableCell>Source</TableCell>
+                <TableCell>Payment Mode</TableCell>
+                <TableCell style={{ textAlign: "right" }}>Amount</TableCell>
+              </TableHead>
+              {historyData.map((item, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{formatDateTime(item.date)}</TableCell>
+                  <TableCell>{item.patient_id}</TableCell>
+                  <TableCell>{item.patient_name}</TableCell>
+                  <TableCell>{item.reference}</TableCell>
+                  <TableCell>{item.source}</TableCell>
+                  <TableCell>{item.payment_mode}</TableCell>
+                  <TableCell style={{ textAlign: "right", fontWeight: "bold" }}>{formatCurrency(item.amount)}</TableCell>
+                </TableRow>
+              ))}
+            </Table>
+            <div className="module-mobile-list" style={{ gap: "0.5rem" }} aria-label="Transaction history cards">
+              {historyData.map((item, idx) => (
+                <article className="module-mobile-card" key={`hist-${idx}`} style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.08)", background: "#fafafa" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                    <strong>{item.patient_name}</strong>
+                    <span style={{ fontWeight: "bold", color: "#0d5d65" }}>{formatCurrency(item.amount)}</span>
+                  </div>
+                  <p style={{ margin: "0.2rem 0", fontSize: "0.85rem" }}><strong>ID:</strong> {item.patient_id}</p>
+                  <p style={{ margin: "0.2rem 0", fontSize: "0.85rem" }}><strong>When:</strong> {formatDateTime(item.date)}</p>
+                  <p style={{ margin: "0.2rem 0", fontSize: "0.85rem" }}><strong>Reference:</strong> {item.reference}</p>
+                  <p style={{ margin: "0.2rem 0", fontSize: "0.85rem" }}><strong>Module:</strong> {item.source}</p>
+                  <p style={{ margin: "0.2rem 0", fontSize: "0.85rem" }}><strong>Paid via:</strong> {item.payment_mode}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }

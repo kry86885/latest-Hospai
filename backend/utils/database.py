@@ -4389,6 +4389,172 @@ def get_revenue_summary(collection_date=None, collection_month=None):
     }
 
 
+def get_report_patient_history(collection_date=None, filter_type=None, filter_value=None):
+    if not filter_type or not filter_value:
+        return []
+
+    filter_value_lower = filter_value.strip().lower()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        date_params = ()
+        if collection_date:
+            invoice_date_clause = "AND DATE(ip.created_at) = DATE(?)"
+            diagnostic_date_clause = "AND DATE(d.created_at) = DATE(?)"
+            pharmacy_date_clause = "AND DATE(ps.sold_at) = DATE(?)"
+            date_params = (collection_date,)
+        else:
+            invoice_date_clause = ""
+            diagnostic_date_clause = ""
+            pharmacy_date_clause = ""
+            
+        results = []
+        
+        if filter_type == 'module':
+            if filter_value_lower in ('op / billing', 'billing', 'op', 'ip'):
+                query = f"""
+                    SELECT i.patient_id, p.name, p.last_name, NULL AS fallback_name,
+                           ip.created_at, i.module AS source, i.invoice_no AS reference,
+                           ip.amount, ip.payment_mode
+                    FROM invoice_payments ip
+                    JOIN invoices i ON i.id = ip.invoice_id
+                    LEFT JOIN patients p ON p.patient_id = i.patient_id
+                    WHERE 1=1 {invoice_date_clause}
+                """
+                if filter_value_lower == 'op / billing':
+                    query += """
+                        AND (LOWER(COALESCE(i.module, '')) LIKE '%op%'
+                          OR LOWER(COALESCE(i.module, '')) LIKE '%consult%'
+                          OR LOWER(COALESCE(i.module, '')) LIKE '%billing%')
+                    """
+                else:
+                    query += " AND LOWER(i.module) = ?"
+                    date_params = date_params + (filter_value_lower,)
+                    
+                cursor.execute(query, date_params)
+                results = [dict(row) for row in cursor.fetchall()]
+                
+            elif filter_value_lower in ('lab / diagnostics', 'lab', 'diagnostics'):
+                query = f"""
+                    SELECT d.patient_id, p.name, p.last_name, d.patient_name AS fallback_name,
+                           d.created_at, 'Lab / Diagnostics' AS source, d.test_name AS reference,
+                           d.paid_amount AS amount, d.payment_mode
+                    FROM diagnostics d
+                    LEFT JOIN patients p ON p.patient_id = d.patient_id
+                    WHERE 1=1 {diagnostic_date_clause}
+                """
+                cursor.execute(query, date_params)
+                results = [dict(row) for row in cursor.fetchall()]
+                
+            elif filter_value_lower == 'pharmacy':
+                query = f"""
+                    SELECT ps.patient_id, p.name, p.last_name, NULL AS fallback_name,
+                           ps.sold_at AS created_at, 'Pharmacy' AS source, ps.medicine_name AS reference,
+                           ps.amount, ps.payment_mode
+                    FROM pharmacy_sales ps
+                    LEFT JOIN patients p ON p.patient_id = ps.patient_id
+                    WHERE 1=1 {pharmacy_date_clause}
+                """
+                cursor.execute(query, date_params)
+                results = [dict(row) for row in cursor.fetchall()]
+                
+            else:
+                query = f"""
+                    SELECT i.patient_id, p.name, p.last_name, NULL AS fallback_name,
+                           ip.created_at, i.module AS source, i.invoice_no AS reference,
+                           ip.amount, ip.payment_mode
+                    FROM invoice_payments ip
+                    JOIN invoices i ON i.id = ip.invoice_id
+                    LEFT JOIN patients p ON p.patient_id = i.patient_id
+                    WHERE LOWER(i.module) = ? {invoice_date_clause}
+                """
+                params = (filter_value_lower,) + date_params
+                cursor.execute(query, params)
+                results = [dict(row) for row in cursor.fetchall()]
+                
+        elif filter_type == 'payment_mode':
+            query1 = f"""
+                SELECT i.patient_id, p.name, p.last_name, NULL AS fallback_name,
+                       ip.created_at,
+                       CASE
+                           WHEN LOWER(COALESCE(i.module, '')) LIKE '%op%'
+                                OR LOWER(COALESCE(i.module, '')) LIKE '%consult%'
+                                OR LOWER(COALESCE(i.module, '')) LIKE '%billing%'
+                           THEN 'OP / Billing'
+                           ELSE COALESCE(NULLIF(TRIM(i.module), ''), 'Billing')
+                       END AS source,
+                       i.invoice_no AS reference, ip.amount, ip.payment_mode
+                FROM invoice_payments ip
+                JOIN invoices i ON i.id = ip.invoice_id
+                LEFT JOIN patients p ON p.patient_id = i.patient_id
+                WHERE COALESCE(NULLIF(TRIM(ip.payment_mode), ''), 'cash') = ? {invoice_date_clause}
+            """
+            query2 = f"""
+                SELECT d.patient_id, p.name, p.last_name, d.patient_name AS fallback_name,
+                       d.created_at, 'Lab / Diagnostics' AS source, d.test_name AS reference,
+                       d.paid_amount AS amount, d.payment_mode
+                FROM diagnostics d
+                LEFT JOIN patients p ON p.patient_id = d.patient_id
+                WHERE COALESCE(NULLIF(TRIM(d.payment_mode), ''), 'cash') = ? {diagnostic_date_clause}
+            """
+            query3 = f"""
+                SELECT ps.patient_id, p.name, p.last_name, NULL AS fallback_name,
+                       ps.sold_at AS created_at, 'Pharmacy' AS source, ps.medicine_name AS reference,
+                       ps.amount, ps.payment_mode
+                FROM pharmacy_sales ps
+                LEFT JOIN patients p ON p.patient_id = ps.patient_id
+                WHERE COALESCE(NULLIF(TRIM(ps.payment_mode), ''), 'cash') = ? {pharmacy_date_clause}
+            """
+            
+            mode_map = {
+                'cash': 'cash',
+                'card': 'card',
+                'upi': 'upi',
+                'bank': 'bank',
+                'net banking': 'bank',
+                'wire transfer': 'bank'
+            }
+            db_mode = mode_map.get(filter_value_lower, filter_value_lower)
+            
+            p1 = (db_mode,) + date_params
+            p2 = (db_mode,) + date_params
+            p3 = (db_mode,) + date_params
+            
+            cursor.execute(query1, p1)
+            r1 = [dict(row) for row in cursor.fetchall()]
+            
+            cursor.execute(query2, p2)
+            r2 = [dict(row) for row in cursor.fetchall()]
+            
+            cursor.execute(query3, p3)
+            r3 = [dict(row) for row in cursor.fetchall()]
+            
+            results = r1 + r2 + r3
+
+        formatted_history = []
+        for r in results:
+            first_name = r.get("name")
+            last_name = r.get("last_name")
+            if first_name:
+                pat_name = f"{first_name} {last_name or ''}".strip()
+            else:
+                pat_name = r.get("fallback_name") or "Walk-in Patient"
+                
+            formatted_history.append({
+                "patient_id": r.get("patient_id") or "Walk-in",
+                "patient_name": pat_name,
+                "date": r.get("created_at").isoformat() if hasattr(r.get("created_at"), 'isoformat') else str(r.get("created_at") or ""),
+                "source": r.get("source") or "Other",
+                "reference": r.get("reference") or "-",
+                "amount": float(r.get("amount") or 0.0),
+                "payment_mode": str(r.get("payment_mode") or "cash").title()
+            })
+            
+        formatted_history.sort(key=lambda x: x["date"], reverse=True)
+        return formatted_history
+
+
 def get_reports_overview():
     hospital_summary = get_hospital_dashboard_summary()
     billing_summary = get_revenue_summary()

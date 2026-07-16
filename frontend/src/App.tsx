@@ -17,7 +17,6 @@ import EmployeesPage from "./pages/EmployeesPage";
 import BillingAgingPage from "./pages/BillingAgingPage";
 import BillingReconciliationPage from "./pages/BillingReconciliationPage";
 import BillingCreateInvoicePage from "./pages/BillingCreateInvoicePage";
-import BillingRecordPaymentPage from "./pages/BillingRecordPaymentPage";
 import BillingClaimsPage from "./pages/BillingClaimsPage";
 import BillingInvoicesPage from "./pages/BillingInvoicesPage";
 import BillingPaymentModesPage from "./pages/BillingPaymentModesPage";
@@ -59,7 +58,6 @@ const NAV_ICON_MAP: Record<string, SidebarIconName> = {
   "billing-aging": "billing",
   "billing-reconciliation": "billing",
   "billing-create-invoice": "billing",
-  "billing-record-payment": "billing",
   "billing-insurance-claims": "billing",
   "billing-invoices": "billing",
   "billing-mode-breakdown": "billing",
@@ -204,6 +202,22 @@ function SidebarTab({ label, icon, active, disabled = false, hint, onClick }: Si
   );
 }
 
+const PAGE_SUBTITLES: Record<string, string> = {
+  patients: "Search and view detailed patient records.",
+  add: "Register new patients and set up appointments.",
+  "op-queue-management": "Monitor and update outpatient queues.",
+  "patient-journey": "Track patient outpatient milestones.",
+  "op-desk": "Manage doctors and outpatient schedules.",
+  readmit: "Schedule revisits and consult follow-ups.",
+  "doctors-history": "Audit doctor patient histories.",
+  lab: "Generate lab bills and view test reports.",
+  "billing-module-collections": "Live revenue snapshot and collection summary.",
+  "accounts-doctor-payouts": "Manage doctor commission balances and payouts.",
+  reports: "Comprehensive daily/monthly diagnostic and sales audits.",
+  settings: "Configure clinic metadata and credentials.",
+  admin: "Clinic administration panel.",
+};
+
 function App() {
   const isAdminRoutePath = typeof window !== "undefined" && window.location.pathname === "/admin";
   const isPlatformAdminRoute = typeof window !== "undefined" && window.location.pathname === "/platform-admin";
@@ -339,7 +353,6 @@ function App() {
       "op-queue-management",
       "op-desk",
       "readmit",
-      "billing-record-payment",
       "billing-module-collections",
       "accounts-doctor-payouts",
       "reports",
@@ -932,13 +945,8 @@ function App() {
         {page !== "dashboard" && (
           <header className="topbar">
             <div>
-              {/* For selected module pages we remove the page title and subtitle per request */}
-              {!(new Set(["lab", "billing-record-payment", "accounts-doctor-payouts", "reports", "patient-journey", "add"]).has(page)) ? (
-                <>
-                  <h2>{page === "admin" ? "Admin" : NAV_ITEMS.find((item) => item.id === page)?.label || "Dashboard"}</h2>
-                  <p className="muted">Stay ahead with real-time care intelligence.</p>
-                </>
-              ) : null}
+              <h2>{page === "admin" ? "Admin" : NAV_ITEMS.find((item) => item.id === page)?.label || "Dashboard"}</h2>
+              <p className="muted">{PAGE_SUBTITLES[page] || "Stay ahead with real-time care intelligence."}</p>
             </div>
           </header>
         )}
@@ -1044,7 +1052,6 @@ function App() {
         {page === "billing-aging" && hasPermission("billing.read") && <BillingAgingPage key={pageKeys[page] || 0} setNotice={setNotice} />}
         {page === "billing-reconciliation" && hasPermission("billing.read") && <BillingReconciliationPage key={pageKeys[page] || 0} setNotice={setNotice} />}
         {page === "billing-create-invoice" && hasPermission("billing.write") && <BillingCreateInvoicePage key={pageKeys[page] || 0} setNotice={setNotice} />}
-        {page === "billing-record-payment" && hasPermission("billing.write") && <BillingRecordPaymentPage key={pageKeys[page] || 0} setNotice={setNotice} />}
         {page === "billing-insurance-claims" && hasPermission("billing.write") && <BillingClaimsPage key={pageKeys[page] || 0} setNotice={setNotice} />}
         {page === "billing-invoices" && hasPermission("billing.read") && <BillingInvoicesPage key={pageKeys[page] || 0} setNotice={setNotice} />}
         {page === "billing-mode-breakdown" && hasPermission("billing.read") && <BillingPaymentModesPage key={pageKeys[page] || 0} setNotice={setNotice} />}
