@@ -18,11 +18,8 @@ type Props = {
 type Department = {
   id: number;
   department_name?: string;
-<<<<<<< HEAD
-  status?: string;
+status?: string;
   is_active?: boolean | number | string;
-=======
->>>>>>> origin/main
 };
 
 type DoctorSuggestionRow = {
@@ -30,10 +27,7 @@ type DoctorSuggestionRow = {
   department?: string | null;
   consultation_fee?: number | null;
   review_fee?: number | null;
-<<<<<<< HEAD
-  status?: string | null;
-=======
->>>>>>> origin/main
+status?: string | null;
 };
 
 type ConsentRecord = {
@@ -251,10 +245,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [selectedInsurancePatient, setSelectedInsurancePatient] = useState<Patient | null>(selectedPatient);
   const [consentForm, setConsentForm] = useState({ ...DEFAULT_CONSENT_FORM });
   const [insuranceForm, setInsuranceForm] = useState({ ...DEFAULT_INSURANCE_FORM });
-<<<<<<< HEAD
-=======
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
->>>>>>> origin/main
+
 
   const loadAppointments = async (selectedDate = queueDate) => {
     setAppointmentsLoading(true);
@@ -271,16 +262,12 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const loadDepartmentOptions = async () => {
     try {
       const data = await apiFetch<{ departments?: Department[] }>("/api/registration/departments");
-<<<<<<< HEAD
-      const activeDepartments = (data.departments || []).filter((department) => {
+const activeDepartments = (data.departments || []).filter((department) => {
         const status = String(department.status || (department.is_active ?? "active")).trim().toLowerCase();
         return !["inactive", "disabled", "false", "0", "deleted"].includes(status);
       });
       const sortedDepartments = activeDepartments.sort((a, b) => String(a.department_name || "").localeCompare(String(b.department_name || "")));
       setDepartments(sortedDepartments);
-=======
-      setDepartments(data.departments || []);
->>>>>>> origin/main
     } catch (error) {
       reportError(setNotice, error as { message?: string; status?: number }, "Unable to load departments.");
     }
@@ -288,8 +275,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
 
   const loadDoctorSuggestions = async (forDate?: string) => {
     try {
-<<<<<<< HEAD
-      // When a specific appointment date is chosen, only show doctors with an
+// When a specific appointment date is chosen, only show doctors with an
       // 'available' schedule on that exact date. When no date is provided (e.g.
       // on initial mount before the user has picked a date), fetch all schedules
       // so the datalist is populated from the start (identical to original behavior).
@@ -309,36 +295,6 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
           return !['inactive', 'disabled', 'leave', 'full', 'unavailable', 'false', '0', 'cancelled'].includes(status);
         })
         .forEach((row) => {
-=======
-      // Always load ALL saved doctors (permanent roster) — no date filter so
-      // every doctor added in Doctor Scheduling is always visible.
-      const allDoctorsData = await apiFetch<{ doctors?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; status?: string | null }[] }>("/api/op/doctors");
-      const names = new Set<string>();
-      const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
-      (allDoctorsData.doctors || []).forEach((row) => {
-        const value = (row.doctor_name || "").trim();
-        if (!value) return;
-        names.add(value);
-        if (!feesByDoctor[value]) {
-          feesByDoctor[value] = {
-            department: row.department ?? undefined,
-            consultation_fee: row.consultation_fee ?? null,
-            review_fee: row.review_fee ?? null,
-          };
-        }
-      });
-      // Also merge any date-specific schedules (for additional fee/dept info)
-      try {
-        let url = "/api/op/doctor-schedules";
-        if (forDate) {
-          const params = new URLSearchParams();
-          params.set("status", "available");
-          params.set("date", forDate);
-          url = `/api/op/doctor-schedules?${params.toString()}`;
-        }
-        const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null }[] }>(url);
-        (scheduleData.schedules || []).forEach((row) => {
->>>>>>> origin/main
           const value = (row.doctor_name || "").trim();
           if (!value) return;
           names.add(value);
@@ -350,10 +306,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
             };
           }
         });
-<<<<<<< HEAD
-=======
-      } catch { /* ignore date-schedule errors, we already have all doctors */ }
->>>>>>> origin/main
+
       setDoctorSuggestions(Array.from(names).sort((a, b) => a.localeCompare(b)));
       setDoctorFeeMap(feesByDoctor);
     } catch {
@@ -401,19 +354,9 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     if (!appointmentForm.department) return doctorSuggestions;
     return doctorSuggestions.filter((name) => {
       const info = doctorFeeMap[name];
-<<<<<<< HEAD
-      return info?.department === appointmentForm.department;
+return info?.department === appointmentForm.department;
     });
   }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
-
-
-
-=======
-      return !info?.department || info.department === appointmentForm.department;
-    });
-  }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
-
->>>>>>> origin/main
   const resolveAppointmentFee = (doctorName: string, appointmentKind: string) => {
     const selectedDoctor = doctorName.trim();
     const selectedDoctorFees = selectedDoctor ? doctorFeeMap[selectedDoctor] : undefined;
@@ -535,8 +478,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       patient_id: patient.patient_id || "",
       patient_name: fullName,
       patient_type: "existing",
-<<<<<<< HEAD
-      department: prev.department,
+department: prev.department,
       doctor_name: prev.doctor_name,
       chief_complaint: prev.chief_complaint,
       bp: prev.bp,
@@ -546,10 +488,6 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       weight: patient.weight ? String(patient.weight) : prev.weight,
       height: patient.height ? String(patient.height) : prev.height,
       consultation_fee: prev.consultation_fee || "",
-=======
-      weight: patient.weight ? String(patient.weight) : prev.weight,
-      height: patient.height ? String(patient.height) : prev.height,
->>>>>>> origin/main
     }));
     setNotice({ type: "success", message: `${fullName || patient.patient_id} selected for appointment.` });
   };
@@ -637,15 +575,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
     const doctorName = appointmentForm.doctor_name.trim();
     const consultationFee = resolveAppointmentFee(doctorName, appointmentForm.appointment_kind);
     if (consultationFee <= 0) {
-<<<<<<< HEAD
-      setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
-=======
-      setNotice({ type: "warning", message: "Consultation fee appears to be 0. Please verify the fee or enter it manually before scheduling." });
-      // Only warn, don't block — allow saving with fee=0 in special cases
-    }
-    if (!paymentConfirmed && consultationFee > 0) {
-      setNotice({ type: "warning", message: "Please confirm that the consultation payment has been collected before scheduling." });
->>>>>>> origin/main
+setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
     }
     setSavingAppointment(true);
@@ -1360,8 +1290,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 <Select
                   value={appointmentForm.department}
                   onChange={(event) => {
-<<<<<<< HEAD
-                    const value = event.target.value;
+const value = event.target.value;
                     const doctors = value ? filteredDoctorSuggestions.filter((name) => doctorFeeMap[name]?.department === value) : [];
                     setAppointmentForm((prev) => {
                       const validDoctor = prev.doctor_name && doctors.includes(prev.doctor_name) ? prev.doctor_name : "";
@@ -1371,28 +1300,6 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                         ...prev,
                         department: value,
                         doctor_name: selectedDoctor,
-=======
-                    const newDept = event.target.value;
-                    // Auto-fill doctor: use the NEW department value to filter
-                    const doctorsInNewDept = newDept
-                      ? doctorSuggestions.filter((name) => {
-                          const info = doctorFeeMap[name];
-                          return info?.department === newDept;
-                        })
-                      : doctorSuggestions;
-                    setAppointmentForm((prev) => {
-                      const doctorStillValid = prev.doctor_name && doctorsInNewDept.includes(prev.doctor_name);
-                      const autoDoctor = doctorStillValid
-                        ? prev.doctor_name
-                        : doctorsInNewDept.length === 1
-                          ? doctorsInNewDept[0]
-                          : "";
-                      const schedule = autoDoctor ? doctorFeeMap[autoDoctor] : undefined;
-                      return {
-                        ...prev,
-                        department: newDept,
-                        doctor_name: autoDoctor,
->>>>>>> origin/main
                         consultation_fee: schedule
                           ? String(
                               prev.appointment_kind === "follow_up" || prev.appointment_kind === "review"
@@ -1404,11 +1311,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                     });
                   }}
                 >
-<<<<<<< HEAD
-                  <option value="">{departments.length ? "Select department" : "No Departments Available"}</option>
-=======
-                  <option value="">Select department</option>
->>>>>>> origin/main
+<option value="">{departments.length ? "Select department" : "No Departments Available"}</option>
                   {departments.map((department) => {
                     const name = (department.department_name || "").trim();
                     if (!name) return null;
@@ -1418,11 +1321,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
               </Label>
               <Label>
                 Doctor
-<<<<<<< HEAD
-                <Input
-=======
-                <Select
->>>>>>> origin/main
+<Input
                   value={appointmentForm.doctor_name}
                   onChange={(event) => {
                     const doctor = event.target.value;
@@ -1440,8 +1339,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                         : prev.consultation_fee,
                     }));
                   }}
-<<<<<<< HEAD
-                  list="registration-doctors"
+list="registration-doctors"
                   placeholder={filteredDoctorSuggestions.length ? "Type doctor name (guest allowed)" : "No Doctors Available"}
                 />
                 <datalist id="registration-doctors">
@@ -1452,19 +1350,6 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                     No doctors available for the selected department.
                   </span>
                 )}
-=======
-                >
-                  <option value="">Select doctor</option>
-                  {filteredDoctorSuggestions.map((doctor) => (
-                    <option key={doctor} value={doctor}>{doctor}</option>
-                  ))}
-                  {filteredDoctorSuggestions.length === 0 && doctorSuggestions.length > 0 && (
-                    doctorSuggestions.map((doctor) => (
-                      <option key={doctor} value={doctor}>{doctor}</option>
-                    ))
-                  )}
-                </Select>
->>>>>>> origin/main
               </Label>
               <Label>
                 Visit Type
@@ -1567,18 +1452,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
               </Label>
             </div>
             <div className="form-actions">
-<<<<<<< HEAD
-=======
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "600", color: "#0f766e", cursor: "pointer", marginBottom: "8px" }}>
-                <input
-                  type="checkbox"
-                  checked={paymentConfirmed}
-                  onChange={(e) => setPaymentConfirmed(e.target.checked)}
-                  style={{ width: "16px", height: "16px", accentColor: "#0f766e" }}
-                />
-                I confirm consultation payment of {appointmentForm.consultation_fee ? `₹${appointmentForm.consultation_fee}` : "the fee"} has been collected
-              </label>
->>>>>>> origin/main
+
               <Button variant="secondary" type="button" onClick={() => void handleCreateAppointment()} disabled={savingAppointment}>
                 {savingAppointment ? "Scheduling..." : "Save Appointment & Generate Token"}
               </Button>
