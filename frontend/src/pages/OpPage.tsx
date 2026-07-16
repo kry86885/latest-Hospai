@@ -579,7 +579,6 @@ export default function OpPage({ setNotice, canEdit }: Props) {
                 );
               })}
             </Select>
-            <Input type="number" min={1} value={scheduleForm.slot_capacity} onChange={(event) => setScheduleForm((current) => ({ ...current, slot_capacity: event.target.value }))} placeholder="Slot capacity" aria-label="Slot capacity" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.consultation_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, consultation_fee: event.target.value }))} placeholder="Consultation fee" aria-label="Consultation fee" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.review_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, review_fee: event.target.value }))} placeholder="Review fee" aria-label="Review fee" disabled={!canEdit} />
             <Select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value }))} aria-label="Schedule status" disabled={!canEdit}>
@@ -599,7 +598,6 @@ export default function OpPage({ setNotice, canEdit }: Props) {
               <TableHead>
                 <TableCell>Doctor</TableCell>
                 <TableCell>Department</TableCell>
-                <TableCell>Capacity</TableCell>
                 <TableCell>Consult Fee</TableCell>
                 <TableCell>Review Fee</TableCell>
                 <TableCell>Status</TableCell>
@@ -609,7 +607,6 @@ export default function OpPage({ setNotice, canEdit }: Props) {
                 <TableRow key={schedule.id}>
                   <TableCell>{schedule.doctor_name}</TableCell>
                   <TableCell>{schedule.department || "-"}</TableCell>
-                  <TableCell>{schedule.slot_capacity || 12}</TableCell>
                   <TableCell>{schedule.consultation_fee ? `₹${schedule.consultation_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.review_fee ? `₹${schedule.review_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.status || "available"}</TableCell>

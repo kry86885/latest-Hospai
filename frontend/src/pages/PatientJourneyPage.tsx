@@ -499,18 +499,14 @@ export default function PatientJourneyPage({ setNotice }: Props) {
 
   return (
     <section className="module-page patient-journey-page">
-      <div className="module-panel-head">
-        <div>
-          <h3>Patient Journey</h3>
-        </div>
-        <Button type="button" variant="secondary" onClick={printSelectedJourney} disabled={!selectedPatient}>
-          Print Summary
-        </Button>
-      </div>
-
       <Card className="journey-search-card">
-        <h4>Patient Lookup</h4>
-        <p className="muted">Search by UHID / Patient ID, mobile number, Aadhaar number, or patient name.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+          <h4 style={{ margin: 0 }}>Patient Lookup</h4>
+          <Button type="button" variant="secondary" onClick={printSelectedJourney} disabled={!selectedPatient} style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem" }}>
+            Print Summary
+          </Button>
+        </div>
+        <p className="muted" style={{ marginTop: 0 }}>Search by UHID / Patient ID, mobile number, Aadhaar number, or patient name.</p>
         <div className="journey-search-row">
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g., PAT-20260608-1001 / mobile / name" onKeyDown={(event) => { if (event.key === "Enter") void searchPatients(); }} />
           <Button type="button" variant="primary" onClick={() => void searchPatients()} disabled={searching}>{searching ? "Searching..." : "Search Patient"}</Button>

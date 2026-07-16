@@ -135,6 +135,7 @@ from utils.database import (
     get_patient_stats,
     get_reports_overview,
     get_revenue_summary,
+    get_report_patient_history,
     init_database,
     list_account_ledger_entries,
     list_attendance,
@@ -987,6 +988,15 @@ def reports_overview():
 def reports_revenue_summary():
     collection_date = request.args.get("date")
     return jsonify(get_revenue_summary(collection_date=collection_date))
+
+
+@app.get("/api/reports/patient-history")
+@require_permissions("reports.read")
+def reports_patient_history():
+    collection_date = request.args.get("date")
+    filter_type = request.args.get("type")
+    filter_value = request.args.get("value")
+    return jsonify(get_report_patient_history(collection_date=collection_date, filter_type=filter_type, filter_value=filter_value))
 
 
 def build_reports_export_text(overview):

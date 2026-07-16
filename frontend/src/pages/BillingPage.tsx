@@ -1473,24 +1473,26 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
 
     return (
       <>
-        <div className="panel">
-          <div className="module-panel-head">
-            <h3>Collections by Module</h3>
-          </div>
-          {summary.collections_by_module.length === 0 ? (
-            <p className="muted">No collection data available.</p>
-          ) : (
-            <div className="bar-chart">
-              {summary.collections_by_module.map((row) => (
-                <div className="bar-row" key={row.label}>
-                  <span>{row.label}</span>
-                  <div className="bar"><div style={{ width: `${Math.max(8, (row.count / maxModuleCollectionValue) * 100)}%` }} /></div>
-                  <span>{formatCurrency(row.count)}</span>
-                </div>
-              ))}
+        {view !== "collections-by-module" && (
+          <div className="panel">
+            <div className="module-panel-head">
+              <h3>Collections by Module</h3>
             </div>
-          )}
-        </div>
+            {summary.collections_by_module.length === 0 ? (
+              <p className="muted">No collection data available.</p>
+            ) : (
+              <div className="bar-chart">
+                {summary.collections_by_module.map((row) => (
+                  <div className="bar-row" key={row.label}>
+                    <span>{row.label}</span>
+                    <div className="bar"><div style={{ width: `${Math.max(8, (row.count / maxModuleCollectionValue) * 100)}%` }} /></div>
+                    <span>{formatCurrency(row.count)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="panel hosp-section-card reports-snapshot-card-exact">
           <div className="reports-snapshot-card-head">
@@ -1528,20 +1530,24 @@ export default function BillingPage({ setNotice, view = "record-payment" }: Prop
 
   return (
     <section className="module-page billing-page">
-      <div className="module-panel-head">
-        <div>
-          <h3>{meta.title}</h3>
-          <p className="muted">{meta.subtitle}</p>
+      {view !== "collections-by-module" && (
+        <div className="module-panel-head">
+          <div>
+            <h3>{meta.title}</h3>
+            <p className="muted">{meta.subtitle}</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="stat-grid module-stat-grid">
-        <StatCard label="Total Billed" value={formatCurrency(summary.total_billed)} />
-        <StatCard label="Collected" value={formatCurrency(summary.total_collected)} />
-        <StatCard label="Pending Due" value={formatCurrency(summary.total_due)} />
-        <StatCard label="Advances" value={formatCurrency(summary.total_advance)} />
-        <StatCard label="Refunds" value={formatCurrency(summary.total_refunded)} />
-      </div>
+      {view !== "collections-by-module" && (
+        <div className="stat-grid module-stat-grid">
+          <StatCard label="Total Billed" value={formatCurrency(summary.total_billed)} />
+          <StatCard label="Collected" value={formatCurrency(summary.total_collected)} />
+          <StatCard label="Pending Due" value={formatCurrency(summary.total_due)} />
+          <StatCard label="Advances" value={formatCurrency(summary.total_advance)} />
+          <StatCard label="Refunds" value={formatCurrency(summary.total_refunded)} />
+        </div>
+      )}
 
       {viewContent}
     </section>
