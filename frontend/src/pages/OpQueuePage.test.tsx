@@ -71,6 +71,69 @@ describe("OpQueuePage", () => {
     expect(container.textContent).toContain("Asha Sharma");
     expect(container.textContent).toContain("Doctors");
     expect(container.textContent).toContain("OP Queue Board");
+    expect(container.textContent).toContain("Clear");
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  test("shows same-day future appointments as Yet to Come", async () => {
+    const futureAppointmentDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    global.fetch = vi.fn((url: string) => {
+      const requestUrl = String(url);
+      if (requestUrl.includes("/api/appointments")) {
+        return jsonResponse({
+          appointments: [
+            {
+              id: 2,
+              patient_id: "PT-002",
+              patient_name: "Ravi Nair",
+              visit_type: "OP",
+              appointment_date: futureAppointmentDate,
+              status: "scheduled",
+              token_no: 13,
+              doctor_name: "Dr. Singh",
+              department: "Orthopaedics",
+              age: "40",
+              gender: "M",
+            },
+          ],
+        });
+      }
+      if (requestUrl.includes("/api/registration/departments")) {
+        return jsonResponse({ departments: [{ id: 2, department_name: "Orthopaedics" }] });
+      }
+      if (requestUrl.includes("/api/op/doctor-schedules")) {
+        return jsonResponse({ schedules: [{ id: 2, doctor_name: "Dr. Singh", department: "Orthopaedics" }] });
+      }
+      if (requestUrl.includes("/api/op/summary")) {
+        return jsonResponse({
+          date: futureAppointmentDate.slice(0, 10),
+          total_appointments: 1,
+          follow_ups: 0,
+          active_queue: 1,
+          no_shows: 0,
+          reminders_sent: 0,
+          available_doctors: 1,
+        });
+      }
+      return jsonResponse({});
+    }) as any;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<OpQueuePage setNotice={vi.fn()} />);
+      await flush();
+      await flush();
+      await flush();
+    });
+
+    expect(container.textContent).toContain("Yet to Come");
 
     act(() => {
       root.unmount();

@@ -70,6 +70,46 @@ describe("RegistrationDeskPage", () => {
     container.remove();
   });
 
+  test("shows an empty-departments fallback when no departments are returned", async () => {
+    global.fetch = vi.fn((url: string) => {
+      const requestUrl = String(url);
+      if (requestUrl.includes("/api/appointments")) {
+        return jsonResponse({ appointments: [] });
+      }
+      if (requestUrl.includes("/api/registration/departments")) {
+        return jsonResponse({ departments: [] });
+      }
+      if (requestUrl.includes("/api/op/doctor-schedules")) {
+        return jsonResponse({ schedules: [] });
+      }
+      if (requestUrl.includes("/api/registration/consents")) {
+        return jsonResponse({ consents: [] });
+      }
+      if (requestUrl.includes("/api/registration/insurance")) {
+        return jsonResponse({ verifications: [] });
+      }
+      return jsonResponse({});
+    }) as any;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<RegistrationDeskPage mode="appointment-in" selectedPatient={null} setNotice={vi.fn()} />);
+      await flush();
+      await flush();
+      await flush();
+    });
+
+    expect(container.textContent).toContain("No Departments Available");
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   test("renders appointment out desk with completion actions", async () => {
     global.fetch = vi.fn((url: string) => {
       const requestUrl = String(url);

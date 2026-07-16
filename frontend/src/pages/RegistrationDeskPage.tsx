@@ -18,6 +18,8 @@ type Props = {
 type Department = {
   id: number;
   department_name?: string;
+  status?: string;
+  is_active?: boolean | number | string;
 };
 
 type DoctorSuggestionRow = {
@@ -25,6 +27,7 @@ type DoctorSuggestionRow = {
   department?: string | null;
   consultation_fee?: number | null;
   review_fee?: number | null;
+  status?: string | null;
 };
 
 type ConsentRecord = {
@@ -258,7 +261,12 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const loadDepartmentOptions = async () => {
     try {
       const data = await apiFetch<{ departments?: Department[] }>("/api/registration/departments");
-      setDepartments(data.departments || []);
+      const activeDepartments = (data.departments || []).filter((department) => {
+        const status = String(department.status || (department.is_active ?? "active")).trim().toLowerCase();
+        return !["inactive", "disabled", "false", "0", "deleted"].includes(status);
+      });
+      const sortedDepartments = activeDepartments.sort((a, b) => String(a.department_name || "").localeCompare(String(b.department_name || "")));
+      setDepartments(sortedDepartments);
     } catch (error) {
       reportError(setNotice, error as { message?: string; status?: number }, "Unable to load departments.");
     }
@@ -277,23 +285,26 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
         params.set("date", forDate);
         url = `/api/op/doctor-schedules?${params.toString()}`;
       }
-      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; start_time?: string | null; end_time?: string | null }[] }>(url);
+      const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; status?: string | null; start_time?: string | null; end_time?: string | null }[] }>(url);
       const names = new Set<string>();
       const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
-      (scheduleData.schedules || []).forEach((row) => {
-        const value = (row.doctor_name || "").trim();
-        if (!value) return;
-        names.add(value);
-        // For the fee map, use the first schedule entry per doctor (schedules
-        // are already ordered start_time ASC by the API).
-        if (!feesByDoctor[value]) {
-          feesByDoctor[value] = {
-            department: row.department ?? undefined,
-            consultation_fee: row.consultation_fee ?? null,
-            review_fee: row.review_fee ?? null,
-          };
-        }
-      });
+      (scheduleData.schedules || [])
+        .filter((row) => {
+          const status = String(row.status || 'available').trim().toLowerCase();
+          return !['inactive', 'disabled', 'leave', 'full', 'unavailable', 'false', '0', 'cancelled'].includes(status);
+        })
+        .forEach((row) => {
+          const value = (row.doctor_name || "").trim();
+          if (!value) return;
+          names.add(value);
+          if (!feesByDoctor[value]) {
+            feesByDoctor[value] = {
+              department: row.department ?? undefined,
+              consultation_fee: row.consultation_fee ?? null,
+              review_fee: row.review_fee ?? null,
+            };
+          }
+        });
       setDoctorSuggestions(Array.from(names).sort((a, b) => a.localeCompare(b)));
       setDoctorFeeMap(feesByDoctor);
     } catch {
@@ -468,8 +479,16 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       patient_id: patient.patient_id || "",
       patient_name: fullName,
       patient_type: "existing",
+      department: prev.department,
+      doctor_name: prev.doctor_name,
+      chief_complaint: prev.chief_complaint,
+      bp: prev.bp,
+      temperature: prev.temperature,
+      pulse: prev.pulse,
+      spo2: prev.spo2,
       weight: patient.weight ? String(patient.weight) : prev.weight,
       height: patient.height ? String(patient.height) : prev.height,
+      consultation_fee: prev.consultation_fee || "",
     }));
     setNotice({ type: "success", message: `${fullName || patient.patient_id} selected for appointment.` });
   };
@@ -1273,7 +1292,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                   value={appointmentForm.department}
                   onChange={(event) => {
                     const value = event.target.value;
-                    const doctors = appointmentForm.department ? filteredDoctorSuggestions : [];
+                    const doctors = value ? filteredDoctorSuggestions.filter((name) => doctorFeeMap[name]?.department === value) : [];
                     setAppointmentForm((prev) => {
                       const validDoctor = prev.doctor_name && doctors.includes(prev.doctor_name) ? prev.doctor_name : "";
                       const selectedDoctor = validDoctor || (doctors.length === 1 ? doctors[0] : "");
@@ -1293,7 +1312,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                     });
                   }}
                 >
-                  <option value="">Select department</option>
+                  <option value="">{departments.length ? "Select department" : "No Departments Available"}</option>
                   {departments.map((department) => {
                     const name = (department.department_name || "").trim();
                     if (!name) return null;
@@ -1322,14 +1341,14 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                     }));
                   }}
                   list="registration-doctors"
-                  placeholder="Type doctor name (guest allowed)"
+                  placeholder={filteredDoctorSuggestions.length ? "Type doctor name (guest allowed)" : "No Doctors Available"}
                 />
                 <datalist id="registration-doctors">
                   {filteredDoctorSuggestions.map((doctor) => <option key={doctor} value={doctor} />)}
                 </datalist>
                 {appointmentForm.appointment_date && filteredDoctorSuggestions.length === 0 && (
                   <span className="field-error" style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", display: "block", fontWeight: "500" }}>
-                    No doctors available, please transfer to other doctor / date
+                    No doctors available for the selected department.
                   </span>
                 )}
               </Label>
