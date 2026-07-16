@@ -31,11 +31,18 @@ type ScheduleForm = {
   schedule_date: string;
   start_time: string;
   end_time: string;
-  slot_capacity: string;
   consultation_fee: string;
   review_fee: string;
   status: string;
   notes: string;
+};
+
+type Doctor = {
+  doctor_name: string;
+  department?: string | null;
+  consultation_fee?: number | null;
+  review_fee?: number | null;
+  status?: string | null;
 };
 
 type AppointmentForm = {
@@ -71,7 +78,6 @@ const DEFAULT_SCHEDULE_FORM: ScheduleForm = {
   schedule_date: "",
   start_time: "09:00",
   end_time: "13:00",
-  slot_capacity: "12",
   consultation_fee: "",
   review_fee: "",
   status: "available",
@@ -163,6 +169,7 @@ export default function OpPage({ setNotice, canEdit }: Props) {
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [lastGeneratedToken, setLastGeneratedToken] = useState<any | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   const loadOpDesk = async (date = selectedDate, doctorName = selectedDoctor) => {
     setLoading(true);
@@ -202,8 +209,21 @@ export default function OpPage({ setNotice, canEdit }: Props) {
     setDepartments(data.departments || []);
   };
 
+  const refreshDoctors = async () => {
+    try {
+      const data = await apiFetch<{ doctors?: Doctor[] }>("/api/op/doctors");
+      const activeDoctors = (data.doctors || [])
+        .filter((doc) => doc.status !== "inactive" && doc.status !== "leave")
+        .sort((a, b) => (a.doctor_name || "").localeCompare(b.doctor_name || ""));
+      setDoctors(activeDoctors);
+    } catch (error) {
+      reportError(setNotice, error as { message?: string; status?: number }, "Unable to load doctors.");
+    }
+  };
+
   useEffect(() => {
     void refreshDepartments().catch(() => setDepartments([]));
+    void refreshDoctors();
   }, []);
 
   useEffect(() => {
@@ -275,10 +295,9 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
         body: JSON.stringify({
           doctor_name: scheduleForm.doctor_name.trim(),
           department: scheduleForm.department.trim() || undefined,
-schedule_date: scheduleForm.schedule_date,
+          schedule_date: scheduleForm.schedule_date,
           start_time: scheduleForm.start_time,
           end_time: scheduleForm.end_time,
-          slot_capacity: Number(scheduleForm.slot_capacity) || 12,
           consultation_fee: Number(scheduleForm.consultation_fee) || undefined,
           review_fee: Number(scheduleForm.review_fee) || undefined,
           status: scheduleForm.status,
@@ -288,6 +307,7 @@ schedule_date: scheduleForm.schedule_date,
       setScheduleForm({ ...DEFAULT_SCHEDULE_FORM, schedule_date: selectedDate });
       setNotice({ type: "success", message: scheduleId ? "Doctor schedule updated." : "Doctor schedule added." });
       await loadOpDesk(selectedDate, selectedDoctor);
+      await refreshDoctors();
     } catch (error) {
       reportError(setNotice, error as { message?: string; status?: number }, "Unable to save doctor schedule.");
     } finally {
@@ -496,12 +516,51 @@ schedule_date: scheduleForm.schedule_date,
     }
   };
 
+  const handleDoctorChange = (doctorName: string) => {
+    const selectedDoctor = doctors.find((d) => d.doctor_name === doctorName);
+    if (selectedDoctor && selectedDoctor.department) {
+      setScheduleForm((current) => ({
+        ...current,
+        doctor_name: doctorName,
+        department: selectedDoctor.department || "",
+      }));
+    } else {
+      setScheduleForm((current) => ({
+        ...current,
+        doctor_name: doctorName,
+      }));
+    }
+  };
+
+  const handleDepartmentChange = (department: string) => {
+    const doctorsInDept = doctors.filter((d) => d.department === department);
+    if (doctorsInDept.length === 1) {
+      const doc = doctorsInDept[0];
+      setScheduleForm((current) => ({
+        ...current,
+        department,
+        doctor_name: doc.doctor_name || "",
+      }));
+    } else {
+      setScheduleForm((current) => ({
+        ...current,
+        department,
+      }));
+    }
+  };
+
+  const filteredDoctorsForDept = useMemo(
+    () => doctors.filter((d) => !scheduleForm.department || d.department === scheduleForm.department),
+    [doctors, scheduleForm.department]
+  );
+
   const deleteSchedule = async (schedule: DoctorSchedule) => {
     if (!window.confirm(`Delete ${schedule.doctor_name} schedule?`)) return;
     try {
       await apiFetch(`/api/op/doctor-schedules/${schedule.id}`, { method: "DELETE" });
       setNotice({ type: "success", message: "Doctor schedule deleted." });
       await loadOpDesk(selectedDate, selectedDoctor);
+      await refreshDoctors();
     } catch (error) {
       reportError(setNotice, error as { message?: string; status?: number }, "Unable to delete doctor schedule.");
     }
@@ -559,7 +618,7 @@ schedule_date: scheduleForm.schedule_date,
           <form className="module-form-grid module-sales-grid op-perfect-schedule-form" onSubmit={handleScheduleSubmit}>
             <Input
               value={scheduleForm.doctor_name}
-              onChange={(event) => setScheduleForm((current) => ({ ...current, doctor_name: event.target.value }))}
+              onChange={(event) => handleDoctorChange(event.target.value)}
               placeholder="Doctor name"
               aria-label="Doctor name"
               disabled={!canEdit}
@@ -567,7 +626,7 @@ schedule_date: scheduleForm.schedule_date,
             />
             <Select
               value={scheduleForm.department}
-              onChange={(event) => setScheduleForm((current) => ({ ...current, department: event.target.value }))}
+              onChange={(event) => handleDepartmentChange(event.target.value)}
               aria-label="Doctor department"
               disabled={!canEdit}
             >
@@ -585,7 +644,6 @@ schedule_date: scheduleForm.schedule_date,
 <Input type="date" value={scheduleForm.schedule_date} onChange={(event) => setScheduleForm((current) => ({ ...current, schedule_date: event.target.value }))} aria-label="Schedule date" disabled={!canEdit} />
             <div className="op-time-field"><Input type="time" value={scheduleForm.start_time} onChange={(event) => setScheduleForm((current) => ({ ...current, start_time: event.target.value }))} aria-label="Start time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.start_time)}</span></div>
             <div className="op-time-field"><Input type="time" value={scheduleForm.end_time} onChange={(event) => setScheduleForm((current) => ({ ...current, end_time: event.target.value }))} aria-label="End time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.end_time)}</span></div>
-            <Input type="number" min={1} value={scheduleForm.slot_capacity} onChange={(event) => setScheduleForm((current) => ({ ...current, slot_capacity: event.target.value }))} placeholder="Slot capacity" aria-label="Slot capacity" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.consultation_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, consultation_fee: event.target.value }))} placeholder="Consultation fee" aria-label="Consultation fee" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.review_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, review_fee: event.target.value }))} placeholder="Review fee" aria-label="Review fee" disabled={!canEdit} />
             <Select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value }))} aria-label="Schedule status" disabled={!canEdit}>
@@ -597,6 +655,11 @@ schedule_date: scheduleForm.schedule_date,
               {savingSchedule ? "Saving..." : scheduleForm.id ? "Update" : "Add"}
             </Button>
           </form>
+          <datalist id="op-doctor-suggestions">
+            {filteredDoctorsForDept.map((doctor) => (
+              <option key={doctor.doctor_name} value={doctor.doctor_name} />
+            ))}
+          </datalist>
 
           {schedules.length === 0 ? (
             <p className="muted">No doctor schedules for this day.</p>
@@ -605,8 +668,7 @@ schedule_date: scheduleForm.schedule_date,
               <TableHead>
                 <TableCell>Doctor</TableCell>
                 <TableCell>Department</TableCell>
-<TableCell>Time</TableCell>
-                <TableCell>Capacity</TableCell>
+                <TableCell>Time</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableHead>
@@ -614,8 +676,7 @@ schedule_date: scheduleForm.schedule_date,
                 <TableRow key={schedule.id}>
                   <TableCell>{schedule.doctor_name}</TableCell>
                   <TableCell>{schedule.department || "-"}</TableCell>
-<TableCell>{`${schedule.start_time} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
-                  <TableCell>{schedule.slot_capacity || 12}</TableCell>
+                  <TableCell>{`${schedule.start_time} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
                   <TableCell>{schedule.status || "available"}</TableCell>
                   <TableCell>
                     <div className="module-inline-actions">
@@ -631,7 +692,6 @@ schedule_date: scheduleForm.schedule_date,
                                 schedule_date: schedule.schedule_date,
                                 start_time: schedule.start_time,
                                 end_time: schedule.end_time,
-                                slot_capacity: String(schedule.slot_capacity || 12),
                                 consultation_fee: String(schedule.consultation_fee || ""),
                                 review_fee: String(schedule.review_fee || ""),
                                 status: schedule.status || "available",
@@ -650,6 +710,34 @@ schedule_date: scheduleForm.schedule_date,
                       )}
                     </div>
                   </TableCell>
+                </TableRow>
+              ))}
+            </Table>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="module-panel-head">
+            <h3>Added Doctors</h3>
+          </div>
+          {doctors.length === 0 ? (
+            <p className="muted">No doctors have been added yet.</p>
+          ) : (
+            <Table className="module-table" aria-label="Doctors list">
+              <TableHead>
+                <TableCell>Doctor Name</TableCell>
+                <TableCell>Department</TableCell>
+                <TableCell>Consultation Fee</TableCell>
+                <TableCell>Review Fee</TableCell>
+                <TableCell>Status</TableCell>
+              </TableHead>
+              {doctors.map((doctor) => (
+                <TableRow key={doctor.doctor_name}>
+                  <TableCell>{doctor.doctor_name}</TableCell>
+                  <TableCell>{doctor.department || "-"}</TableCell>
+                  <TableCell>{doctor.consultation_fee ? `₹${doctor.consultation_fee}` : "-"}</TableCell>
+                  <TableCell>{doctor.review_fee ? `₹${doctor.review_fee}` : "-"}</TableCell>
+                  <TableCell>{doctor.status ? doctor.status.charAt(0).toUpperCase() + doctor.status.slice(1) : "Active"}</TableCell>
                 </TableRow>
               ))}
             </Table>
