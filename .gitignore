@@ -1,0 +1,56 @@
+# Secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+*.key
+*.pem
+license.lic
+
+# Python
+.venv/
+venv/
+backend/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Databases and backups
+*.db
+*.sqlite
+*.sqlite3
+*.backup
+*.dump
+backups/
+backend/backups/
+
+# Logs and runtime files
+logs/
+backend/logs/
+*.log
+cookies.txt
+
+# Patient uploads/documents
+uploads/
+backend/uploads/
+runtime_data/
+patient_documents/
+
+# Build output
+build/
+dist/
+release_client/
+*.exe
+
+# Editors and Windows
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

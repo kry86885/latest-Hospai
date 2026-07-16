@@ -1,0 +1,22 @@
+HospAI offline production notes
+
+1. Offline working
+- The desktop app must work without internet.
+- License validation is local/offline only.
+- Device ID is now pinned in AppData so it will not change when Wi-Fi/LAN/internet is disabled.
+- Network/MAC address is no longer used to compute the active Device ID.
+
+2. Permanent data
+- Live hospital data is stored in PostgreSQL database hospai.
+- Do not run FULL_CLEAN_HOSPAI_RESET.bat after live patient data entry starts.
+- Use BACKUP_HOSPAI_DATA.bat regularly.
+- RESET_LICENSE_ONLY.bat removes license only and keeps patient data.
+
+3. Print/export branding
+- Print windows use embedded client header image data, not internet URLs and not /logo.png paths.
+- This prevents missing logo/header in offline mode.
+
+4. UI fixes included
+- OP schedule form spacing strengthened to avoid overlap.
+- Payment Summary Pending Due card gets more space.
+- Lab & Diagnostics existing records table gets horizontal space and due amount column remains visible.

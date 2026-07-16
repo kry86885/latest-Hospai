@@ -1,0 +1,28 @@
+HospAI final fixes applied:
+
+1. PostgreSQL database initialization prepared for fresh client installs.
+   - All operational/client/demo/sample tables are empty.
+   - Required hospital config is preserved.
+   - Default login users are still created automatically by backend startup.
+
+2. Login password field now has show/hide eye button.
+
+3. Patient Registration mobile fields now support country-code selection and country-specific length validation.
+
+4. Male patients do not submit pregnant=true; pregnant data is forced false unless Gender is Female.
+
+5. Patient search and Re-visit search already use robust case-insensitive full/partial name, UHID, and phone matching.
+
+6. Daily/Monthly report bars now remain empty for zero values instead of forcing a visible bar.
+
+7. Lab & Diagnostics billing now allocates discount/tax per service line and persists net payable amounts correctly.
+
+8. Lab paid amount resets empty instead of defaulting to 0 after bill save.
+
+9. Patient IDs remain PAT-YYYYMMDD-0001, PAT-YYYYMMDD-0002, etc.
+
+IMPORTANT LOCAL TEST NOTE:
+If old records still appear on the developer's computer, delete old AppData test DB before installing/testing:
+CMD: rmdir /s /q "%APPDATA%\HospAI"
+PowerShell: Remove-Item "$env:APPDATA\HospAI" -Recurse -Force
+This is only for testing. Client data is intentionally preserved after real installation.

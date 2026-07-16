@@ -1,0 +1,71 @@
+HOSPAI FRESH INSTALL / CLEAN CLIENT COMMANDS
+===========================================
+
+1) FULL CLEAN OLD DATA ON ANY CLIENT SYSTEM
+Run as Administrator:
+
+FULL_CLEAN_HOSPAI_RESET.bat
+
+This removes:
+- old HospAI AppData
+- old license files
+- old saved login/session/cache
+- old local runtime database
+- previous patients/local client data on that system
+
+After this, opening HospAI must show license activation first.
+
+
+2) CLEAN BUNDLED DATABASE BEFORE FINAL BUILD
+From extracted project folder:
+
+python scripts\clean_client_data.py
+
+This keeps only:
+Username: Dr. PRABHU
+Password: Dr. PRABHU@123
+
+It removes patients, sessions, departments, appointments, billing, pharmacy, lab, HR, OT, accounts and other old data from the PostgreSQL database.
+
+
+3) BUILD FINAL WINDOWS EXE
+From extracted project folder:
+
+BUILD_DESKTOP_WINDOWS.bat
+
+Expected output:
+release\HospAI_Setup.exe
+release\HospAI_Portable.exe
+
+
+4) GENERATE MANDATORY 9-DIGIT TIME-EXPIRY LICENSE
+Replace Device ID with the Device ID shown in HospAI activation page:
+
+python license_tools\generate_license.py --device-id "HOSPAI-XXXX-XXXX-XXXX" --hospital "Client Hospital" --expiry "2026-06-25 05:30 PM"
+
+
+5) TEST 2-MINUTE EXPIRY BLOCKING
+PowerShell:
+
+$device="HOSPAI-XXXX-XXXX-XXXX"
+$expiry=(Get-Date).AddMinutes(2).ToString("yyyy-MM-dd hh:mm tt")
+python license_tools\generate_license.py --device-id $device --hospital "Expiry Test" --expiry "$expiry"
+
+Confirm the generator output shows Code Length: 9. Activate with that 9-character code, keep the app open, and wait. It must block automatically when the expiry time passes.
+
+
+6) MANUAL BLOCK / UNBLOCK
+Block current client system:
+
+python license_tools\block_local_license.py --block --reason "Blocked by admin"
+
+Unblock current client system:
+
+python license_tools\block_local_license.py --unblock
+
+
+7) LOGIN AFTER ACTIVATION
+Username: Dr. PRABHU
+Password: Dr. PRABHU@123
+
+Old demo users like employee / employee123 should not work.

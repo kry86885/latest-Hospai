@@ -1,0 +1,11 @@
+Updated in this package:
+- Activation code remains exactly 9 characters only.
+- 9-character code is generated internally using HMAC with letters, numbers, and special characters in the secret seed.
+- Exact-time blocking remains enabled at the selected minute.
+- Print/export headers now use the client-provided DR.PRABHU branding image and logo.
+- Backend PDF exports and frontend print windows were updated to remove HospAI branding from printed/exported pages.
+
+Recommended first-run cleanup on Windows:
+1) Run FULL_CLEAN_HOSPAI_RESET.bat as Administrator.
+2) Start app and activate using the newly generated 9-character code.
+3) Test a short-expiry code for time blocking.
