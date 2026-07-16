@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Button, Input, Select } from "../components/ui";
+import { Button, Input, Label, Select } from "../components/ui";
 import { apiFetch, reportError } from "../lib/api";
 import type { Notice } from "../types";
 import { fullPatientName, lookupPatientByUhid, normalizeUhidLookup } from "../lib/patientLookup";
@@ -1103,71 +1103,65 @@ export default function LabPage({ setNotice }: Props) {
           <h3 className="lab-section-header">1. Patient & Visit Information</h3>
           <div className="lab-patient-grid">
             <div className="lab-field">
-              <label>UHID / Patient ID *</label>
-              <Input 
+              <Label>UHID / Patient ID<Input 
                 value={patientUhid} 
                 onChange={(event) => { setPatientUhid(event.target.value); setPatientName(""); }} 
                 onBlur={(event) => void fillBillingPatient(event.target.value)} 
                 onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void fillBillingPatient((event.currentTarget as HTMLInputElement).value); } }} 
                 placeholder="Enter UHID or last 4 digits" 
-                aria-label="Patient UHID" 
-              />
+                aria-label="Patient UHID"
+                required
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Visit Type *</label>
-              <Select value={visitType} onChange={(event) => setVisitType(event.target.value)} aria-label="Visit Type">
+              <Label>Visit Type<Select value={visitType} onChange={(event) => setVisitType(event.target.value)} aria-label="Visit Type" required>
                 <option value="OPD">OPD</option>
                 <option value="IPD">IPD</option>
                 <option value="Emergency">Emergency</option>
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Date / Time</label>
-              <Input 
+              <Label>Date / Time<Input 
                 type="datetime-local"
                 value={visitDateTime}
                 onChange={(event) => setVisitDateTime(event.target.value)}
                 aria-label="Visit Date Time"
-              />
+              /></Label>
             </div>
 
             <div className="lab-field">
-              <label>Patient Name *</label>
-              <Input 
+              <Label>Patient Name<Input 
                 value={patientName} 
                 onChange={(event) => setPatientName(event.target.value)} 
                 placeholder="Auto-filled" 
-                aria-label="Patient name" 
-              />
+                aria-label="Patient name"
+                required
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Age</label>
-              <Input 
+              <Label>Age<Input 
                 type="number"
                 value={patientAge}
                 onChange={(event) => setPatientAge(event.target.value)}
                 placeholder="Auto-filled"
                 aria-label="Age"
-              />
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Gender</label>
-              <Select value={patientGender} onChange={(event) => setPatientGender(event.target.value)} aria-label="Gender">
+              <Label>Gender<Select value={patientGender} onChange={(event) => setPatientGender(event.target.value)} aria-label="Gender">
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Other">Other</option>
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Report Delivery Mode</label>
-              <Select value={reportDeliveryMode} onChange={(event) => setReportDeliveryMode(event.target.value)} aria-label="Delivery Mode">
+              <Label>Report Delivery Mode<Select value={reportDeliveryMode} onChange={(event) => setReportDeliveryMode(event.target.value)} aria-label="Delivery Mode">
                 {DELIVERY_MODES.map(mode => <option key={mode}>{mode}</option>)}
-              </Select>
+              </Select></Label>
             </div>
 
             <div className="lab-field">
-              <label>Department *</label>
-              <Select
+              <Label>Department<Select
                 value={department}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -1177,14 +1171,14 @@ export default function LabPage({ setNotice }: Props) {
                   else setDoctorName("");
                 }}
                 aria-label="Department"
+                required
               >
                 <option value="">Select Department</option>
                 {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Doctor *</label>
-              <Select
+              <Label>Doctor<Select
                 value={doctorName}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -1193,29 +1187,28 @@ export default function LabPage({ setNotice }: Props) {
                   if (schedule?.department) setDepartment(schedule.department || "");
                 }}
                 aria-label="Doctor name"
+                required
               >
                 <option value="">Select Doctor</option>
                 {(department ? doctorsForDepartment(department) : doctorSchedules.map((s) => String(s.doctor_name || "")).filter(Boolean))
                   .map((dn) => <option key={dn} value={dn}>{dn}</option>)}
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Report Delivery Date</label>
-              <Input 
+              <Label>Report Delivery Date<Input 
                 type="date"
                 value={reportDeliveryDate}
                 onChange={(event) => setReportDeliveryDate(event.target.value)}
                 aria-label="Report Delivery Date"
-              />
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Remarks</label>
-              <Input 
+              <Label>Remarks<Input 
                 value={remarks}
                 onChange={(event) => setRemarks(event.target.value)}
                 placeholder="Additional remarks (if any)"
                 aria-label="Remarks"
-              />
+              /></Label>
             </div>
           </div>
 
@@ -1280,32 +1273,28 @@ export default function LabPage({ setNotice }: Props) {
               />
             </div>
             <div className="lab-field">
-              <label>Payment Mode *</label>
-              <Select value={paymentMode} onChange={(event) => setPaymentMode(event.target.value)} aria-label="Payment Mode">
+              <Label>Payment Mode<Select value={paymentMode} onChange={(event) => setPaymentMode(event.target.value)} aria-label="Payment Mode" required>
                 {PAYMENT_MODES.map(mode => <option key={mode}>{mode}</option>)}
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Total Lab Tests Amount (₹)</label>
-              <Input 
+              <Label>Total Lab Tests Amount (₹)<Input 
                 type="text"
                 value={formatAmount(labTotal)}
                 aria-label="Total Lab Tests Amount"
                 disabled
-              />
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Total Diagnostic Amount (₹)</label>
-              <Input 
+              <Label>Total Diagnostic Amount (₹)<Input 
                 type="text"
                 value={formatAmount(diagnosticTotal)}
                 aria-label="Total Diagnostic Amount"
                 disabled
-              />
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Paid Amount (₹) *</label>
-              <Input 
+              <Label>Paid Amount (₹)<Input 
                 type="number"
                 min={0}
                 value={paidAmount}
@@ -1313,7 +1302,8 @@ export default function LabPage({ setNotice }: Props) {
                 placeholder="0.00"
                 aria-label="Paid Amount"
                 disabled={selectedRecord !== null}
-              />
+                required
+              /></Label>
             </div>
             {selectedRecord && (
               <div className="lab-field">
@@ -1332,40 +1322,37 @@ export default function LabPage({ setNotice }: Props) {
             )}
 
             <div className="lab-field">
-              <label>Transaction / Reference No.</label>
-              <Input 
+              <Label>Transaction / Reference No.<Input 
                 value={transactionId}
                 onChange={(event) => setTransactionId(event.target.value)}
                 placeholder="e.g., TXN123456789"
                 aria-label="Transaction ID"
-              />
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Discount Type</label>
-              <Select aria-label="Discount Type">
+              <Label>Discount Type<Select aria-label="Discount Type">
                 <option value="">Percentage (%)</option>
                 <option value="">Fixed Amount</option>
-              </Select>
+              </Select></Label>
             </div>
             <div className="lab-field">
-              <label>Percentage / Discount (%) *</label>
-              <Input 
+              <Label>Percentage / Discount (%)<Input 
                 type="number"
                 min={0}
                 value={discountPercentage}
                 onChange={(event) => setDiscountPercentage(event.target.value)}
                 placeholder="0"
                 aria-label="Discount Percentage"
-              />
+                required
+              /></Label>
             </div>
             <div className="lab-field">
-              <label>Discount Amount (₹)</label>
-              <Input 
+              <Label>Discount Amount (₹)<Input 
                 type="text"
                 value={formatAmount(discountAmount)}
                 disabled
                 aria-label="Discount Amount"
-              />
+              /></Label>
             </div>
 
             <div className="lab-field">
