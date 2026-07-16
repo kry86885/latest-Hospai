@@ -34,6 +34,7 @@ type QueuePatient = {
   priority?: "High" | "Follow-up" | "Normal";
 };
 
+<<<<<<< HEAD
 const normalizeDateOnly = (value?: string | null) => {
   if (!value) return "";
   const rawValue = String(value).trim();
@@ -66,6 +67,12 @@ const mapAppointmentStatus = (status?: string, appointmentDate?: string): QueueP
     if (selectedDate === currentDate) return "Yet to Come";
     return "Yet to Come";
   }
+=======
+const mapAppointmentStatus = (status?: string): QueuePatient["status"] => {
+  if (status === "completed") return "Completed";
+  if (status === "in_consultation") return "In Consultation";
+  if (status === "checked_in" || status === "scheduled") return "In Queue";
+>>>>>>> origin/main
   return "Yet to Come";
 };
 
@@ -151,7 +158,11 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
             visitType: appointment.appointment_kind || appointment.visit_type || "OP",
             arrivedAt: appointment.appointment_date ? new Date(appointment.appointment_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--",
             arrivedAtRaw: appointment.appointment_date || new Date().toISOString(),
+<<<<<<< HEAD
             status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
+=======
+            status: mapAppointmentStatus(appointment.status),
+>>>>>>> origin/main
             mobile: String(appointment.mobile || appointment.phone || ""),
             appointmentId: Number(appointment.id),
             department: String(appointment.department || ""),
@@ -161,6 +172,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
         });
       const nextQueue = [...readmitEntries, ...mapped];
       const departmentNames = new Set<string>();
+<<<<<<< HEAD
       (departmentData.departments || [])
         .filter((department) => isActiveDepartment(department))
         .forEach((department) => {
@@ -173,17 +185,34 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
           const name = String(schedule.department || "").trim();
           if (name) departmentNames.add(name);
         });
+=======
+      (departmentData.departments || []).forEach((department) => {
+        const name = String(department.department_name || "").trim();
+        if (name) departmentNames.add(name);
+      });
+      (scheduleData.schedules || []).forEach((schedule) => {
+        const name = String(schedule.department || "").trim();
+        if (name) departmentNames.add(name);
+      });
+>>>>>>> origin/main
       nextQueue.forEach((patient) => {
         const name = String(patient.department || "").trim();
         if (name) departmentNames.add(name);
       });
       const doctorNames = new Set<string>();
+<<<<<<< HEAD
       (scheduleData.schedules || [])
         .filter((schedule) => isActiveDoctorSchedule(schedule))
         .forEach((schedule) => {
           const name = String(schedule.doctor_name || "").trim();
           if (name) doctorNames.add(name);
         });
+=======
+      (scheduleData.schedules || []).forEach((schedule) => {
+        const name = String(schedule.doctor_name || "").trim();
+        if (name) doctorNames.add(name);
+      });
+>>>>>>> origin/main
       nextQueue.forEach((patient) => {
         const name = String(patient.doctor || "").trim();
         if (name) doctorNames.add(name);
@@ -557,7 +586,10 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
     setQueueTypeFilter("");
     setStatusFilter("");
     setSearch("");
+<<<<<<< HEAD
     void loadQueueFromPatients();
+=======
+>>>>>>> origin/main
   };
 
   const printSelectedSlip = () => {
@@ -671,14 +703,22 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
           <label>
             <span className="op-filter-label">Department</span>
             <Select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+<<<<<<< HEAD
               <option value="">{departments.length ? "All Departments" : "No Departments Available"}</option>
+=======
+              <option value="">All Departments</option>
+>>>>>>> origin/main
               {departments.map((name) => <option key={name} value={name}>{name}</option>)}
             </Select>
           </label>
           <label>
             <span className="op-filter-label">Doctor</span>
             <Select value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)}>
+<<<<<<< HEAD
               <option value="">{doctors.length ? "All Doctors" : "No Doctors Available"}</option>
+=======
+              <option value="">All Doctors</option>
+>>>>>>> origin/main
               {doctors.map((name) => <option key={name} value={name}>{name}</option>)}
             </Select>
           </label>
@@ -719,7 +759,11 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
             <div className="search-with-clear-btn">
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="UHID, name, mobile..." />
               <button type="button" className="filter-clear-btn" title="Reset Filters" onClick={clearFilters}>
+<<<<<<< HEAD
                 Clear
+=======
+                🧹
+>>>>>>> origin/main
               </button>
             </div>
           </label>

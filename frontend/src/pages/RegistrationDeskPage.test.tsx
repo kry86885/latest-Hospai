@@ -70,6 +70,7 @@ describe("RegistrationDeskPage", () => {
     container.remove();
   });
 
+<<<<<<< HEAD
   test("shows an empty-departments fallback when no departments are returned", async () => {
     global.fetch = vi.fn((url: string) => {
       const requestUrl = String(url);
@@ -110,6 +111,8 @@ describe("RegistrationDeskPage", () => {
     container.remove();
   });
 
+=======
+>>>>>>> origin/main
   test("renders appointment out desk with completion actions", async () => {
     global.fetch = vi.fn((url: string) => {
       const requestUrl = String(url);

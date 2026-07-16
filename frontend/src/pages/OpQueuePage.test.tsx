@@ -71,6 +71,7 @@ describe("OpQueuePage", () => {
     expect(container.textContent).toContain("Asha Sharma");
     expect(container.textContent).toContain("Doctors");
     expect(container.textContent).toContain("OP Queue Board");
+<<<<<<< HEAD
     expect(container.textContent).toContain("Clear");
 
     act(() => {
@@ -134,6 +135,8 @@ describe("OpQueuePage", () => {
     });
 
     expect(container.textContent).toContain("Yet to Come");
+=======
+>>>>>>> origin/main
 
     act(() => {
       root.unmount();

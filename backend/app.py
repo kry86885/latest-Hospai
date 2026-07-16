@@ -2364,11 +2364,25 @@ def op_doctor_schedules_list():
 @require_permissions("patients.write")
 def op_doctor_schedules_create():
     payload = request.get_json(force=True)
+<<<<<<< HEAD
     validation_error = validate_required_fields(
         payload, ["doctor_name", "schedule_date", "start_time", "end_time"]
     )
     if validation_error:
         return validation_error
+=======
+    # Only doctor_name is required; date and time are optional (permanent roster)
+    validation_error = validate_required_fields(payload, ["doctor_name"])
+    if validation_error:
+        return validation_error
+    # Provide sensible defaults when date/time are omitted
+    if not payload.get("schedule_date"):
+        payload["schedule_date"] = None
+    if not payload.get("start_time"):
+        payload["start_time"] = "09:00"
+    if not payload.get("end_time"):
+        payload["end_time"] = "13:00"
+>>>>>>> origin/main
     try:
         schedule_id = create_doctor_schedule(payload)
     except ValueError as exc:
@@ -2382,6 +2396,33 @@ def op_doctor_schedules_create():
     return jsonify({"schedule_id": schedule_id})
 
 
+<<<<<<< HEAD
+=======
+@app.get("/api/op/doctors")
+@require_permissions("patients.read")
+def op_doctors_list():
+    """Return all distinct doctors saved in doctor_schedules with their
+    department and fee info, regardless of date. Used to populate department→doctor
+    dropdowns without any date-based filtering."""
+    department = request.args.get("department") or None
+    rows = list_doctor_schedules(department=department)
+    seen = {}
+    for row in rows:
+        name = (row["doctor_name"] or "").strip()
+        if not name:
+            continue
+        if name not in seen:
+            seen[name] = {
+                "doctor_name": name,
+                "department": row["department"] or "",
+                "consultation_fee": row["consultation_fee"] or 0,
+                "review_fee": row["review_fee"] or 0,
+                "status": row["status"] or "available",
+            }
+    return jsonify({"doctors": list(seen.values())})
+
+
+>>>>>>> origin/main
 @app.put("/api/op/doctor-schedules/<int:schedule_id>")
 @require_permissions("patients.write")
 def op_doctor_schedules_update(schedule_id):
