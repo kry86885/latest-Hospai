@@ -324,16 +324,16 @@ export default function LabPage({ setNotice }: Props) {
             paid_amount: 0,
             sample_barcode: item.code.trim() || undefined,
             order_status: "ordered",
-            bill_date: billDate,
-            due_date: dueDate,
-            payment_mode: paymentMode,
+            bill_date: billDate || undefined,
+            due_date: dueDate || undefined,
+            payment_mode: paymentMode || undefined,
             transaction_id: transactionId.trim() || undefined,
             discount_percentage: Number(discountPercentage || 0),
             discount_amount: lineDiscount,
             tax_percentage: Number(taxPercentage || 0),
             tax_amount: lineTax,
-            report_delivery_mode: reportDeliveryMode,
-            report_delivery_date: reportDeliveryDate,
+            report_delivery_mode: reportDeliveryMode || undefined,
+            report_delivery_date: reportDeliveryDate || undefined,
             remarks: remarks.trim() || undefined,
           };
         });
@@ -1219,10 +1219,6 @@ export default function LabPage({ setNotice }: Props) {
             </div>
           </div>
 
-          <div className="lab-change-remaining">
-            {renderChangeOrRemaining()}
-          </div>
-
           {/* 2. SELECT SERVICES */}
           <h3 className="lab-section-header">2. Select Services</h3>
           <div className="lab-tabs">
@@ -1423,12 +1419,19 @@ export default function LabPage({ setNotice }: Props) {
             </div>
             <div className="summary-row summary-paid">
               <span>Paid Amount (₹)</span>
-              <strong>{formatAmount(Number(paidAmount || 0))}</strong>
+              <strong>{formatAmount(totalPaidAfterUpdate)}</strong>
             </div>
-            <div className="summary-row summary-balance">
-              <span>Balance Amount (₹)</span>
-              <strong>{formatAmount(Math.max(balanceAmount, 0))}</strong>
-            </div>
+            {balanceAmount < 0 ? (
+              <div className="summary-row summary-change">
+                <span>Change to Return (₹)</span>
+                <strong>{formatAmount(Math.abs(balanceAmount))}</strong>
+              </div>
+            ) : (
+              <div className="summary-row summary-balance">
+                <span>Balance Amount (₹)</span>
+                <strong>{formatAmount(balanceAmount)}</strong>
+              </div>
+            )}
           </div>
 
           {/* ACTION BUTTONS */}

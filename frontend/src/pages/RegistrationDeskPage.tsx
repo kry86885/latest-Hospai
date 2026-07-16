@@ -214,6 +214,7 @@ function printInsuranceDocument(form: typeof DEFAULT_INSURANCE_FORM & Record<str
 export default function RegistrationDeskPage({ mode, selectedPatient, setNotice }: Props) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [queueDate, setQueueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savingAppointment, setSavingAppointment] = useState(false);
   const [isRazorpayReady, setIsRazorpayReady] = useState(true);
 
@@ -242,11 +243,10 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [consentForm, setConsentForm] = useState({ ...DEFAULT_CONSENT_FORM });
   const [insuranceForm, setInsuranceForm] = useState({ ...DEFAULT_INSURANCE_FORM });
 
-  const loadAppointments = async () => {
+  const loadAppointments = async (selectedDate = queueDate) => {
     setAppointmentsLoading(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const data = await apiFetch<{ appointments?: Appointment[] }>(`/api/appointments?date=${today}`);
+      const data = await apiFetch<{ appointments?: Appointment[] }>(`/api/appointments?date=${selectedDate}`);
       setAppointments(data.appointments || []);
     } catch (error) {
       reportError(setNotice, error as { message?: string; status?: number }, "Unable to load appointments.");
@@ -318,11 +318,11 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   };
 
   useEffect(() => {
-    void loadAppointments();
+    void loadAppointments(queueDate);
     void loadDepartmentOptions();
     void loadDoctorSuggestions();
     void loadRegistrationOps();
-  }, []);
+  }, [queueDate]);
 
   // Re-fetch available doctors whenever the selected appointment date changes
   // so the datalist only shows doctors who have a status='available' schedule
@@ -1327,6 +1327,11 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
                 <datalist id="registration-doctors">
                   {filteredDoctorSuggestions.map((doctor) => <option key={doctor} value={doctor} />)}
                 </datalist>
+                {appointmentForm.appointment_date && filteredDoctorSuggestions.length === 0 && (
+                  <span className="field-error" style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", display: "block", fontWeight: "500" }}>
+                    No doctors available, please transfer to other doctor / date
+                  </span>
+                )}
               </Label>
               <Label>
                 Visit Type
@@ -1455,9 +1460,22 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
       ) : null}
 
       <div className="panel registration-desk-panel">
-        <h4>{mode === "appointment-in" ? "Appointment Queue (In)" : "Appointment Queue (Out)"}</h4>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+          <h4 style={{ margin: 0 }}>{mode === "appointment-in" ? "Appointment Queue (In)" : "Appointment Queue (Out)"}</h4>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", fontWeight: "bold" }}>Queue Date:</span>
+            <Input
+              type="date"
+              value={queueDate}
+              onChange={(e) => setQueueDate(e.target.value)}
+              style={{ width: "150px", padding: "4px 8px", fontSize: "13px" }}
+            />
+          </div>
+        </div>
         {appointmentsLoading ? <p className="muted">Loading queue...</p> : null}
-        {!appointmentsLoading && queue.length === 0 ? <p className="muted">No appointments found for today.</p> : null}
+        {!appointmentsLoading && queue.length === 0 ? (
+          <p className="muted">No appointments found for {queueDate === new Date().toISOString().slice(0, 10) ? "today" : queueDate}.</p>
+        ) : null}
         {!appointmentsLoading && queue.length > 0 ? (
           <div className="module-mobile-list" style={{ display: "grid" }}>
             {queue.map((appointment) => (

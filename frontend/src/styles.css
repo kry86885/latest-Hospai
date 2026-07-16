@@ -5413,6 +5413,17 @@ main {
   color: #ca8a04;
 }
 
+.summary-row.summary-change {
+  background: #dcfce7;
+  border-radius: 6px;
+  border: none;
+  padding: 12px 14px;
+}
+
+.summary-row.summary-change strong {
+  color: #15803d;
+}
+
 .lab-action-buttons {
   display: flex;
   gap: 12px;

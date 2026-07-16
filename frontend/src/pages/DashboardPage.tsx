@@ -392,9 +392,6 @@ export default function DashboardPage({
   const selectedDateRegistrationCount = dashboardDate === todayIso ? (stats.today || patientsForDashboardDate.length) : patientsForDashboardDate.length;
   const dashboardDateIsToday = dashboardDate === todayIso;
   const selectedDateRevenueLabel = dashboardDateIsToday ? "Today's Revenue" : "Revenue";
-  const selectedDateRevenueValue = dashboardDateIsToday ? formatCurrencyShort(todayRevenue) : "N/A";
-  const selectedDateRevenueSub = dashboardDateIsToday ? "From today's invoices" : `Selected date: ${currentDateLabel}`;
-
   // Derived values
   const dailyOp = hospitalSummary?.ip_op_counts?.daily_op || 0;
   const dailyIp = hospitalSummary?.ip_op_counts?.daily_ip || 0;
@@ -407,6 +404,9 @@ export default function DashboardPage({
   const todayRevenueBreakdown = revenueBreakdown.today || {};
   const monthlyRevenueBreakdown = revenueBreakdown.monthly || {};
   const paymentModes = hospitalSummary?.revenue?.payment_mode_breakdown || [];
+
+  const selectedDateRevenueValue = dashboardDateIsToday ? formatCurrencyShort(todayRevenue) : "N/A";
+  const selectedDateRevenueSub = dashboardDateIsToday ? "From today's invoices" : `Selected date: ${currentDateLabel}`;
 
   const opCompleted = Math.max(dailyOp, 0);
   const todayOps = hospitalSummary?.operations_today || {};

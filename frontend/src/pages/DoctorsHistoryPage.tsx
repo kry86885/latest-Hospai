@@ -50,6 +50,7 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
   // Options states
   const [doctorsList, setDoctorsList] = useState<string[]>([]);
   const [departmentsList, setDepartmentsList] = useState<DepartmentRecord[]>([]);
+  const [doctorDeptMap, setDoctorDeptMap] = useState<Record<string, string>>({});
 
   // Query/Data states
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
@@ -67,31 +68,43 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
         // doctor names for the filter dropdown. We intentionally do NOT filter
         // by status='available' here — we want to show all doctors who have
         // ever had a schedule so that historical records can be looked up.
-        apiFetch<{ schedules?: { doctor_name?: string | null }[] }>("/api/op/doctor-schedules").catch(() => ({ schedules: [] })),
+        apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null }[] }>("/api/op/doctor-schedules").catch(() => ({ schedules: [] })),
       ]);
 
       setDepartmentsList(deptRes.departments || []);
 
       const names = new Set<string>();
+      const deptMap: Record<string, string> = {};
       (scheduleRes.schedules || []).forEach((row) => {
-        if (row.doctor_name) names.add(row.doctor_name.trim());
+        if (row.doctor_name) {
+          const docName = row.doctor_name.trim();
+          names.add(docName);
+          if (row.department) {
+            deptMap[docName] = row.department.trim();
+          }
+        }
       });
 
       setDoctorsList(Array.from(names).sort((a, b) => a.localeCompare(b)));
+      setDoctorDeptMap(deptMap);
     } catch (err) {
       reportError(setNotice, err as { message?: string; status?: number }, "Unable to load page filters.");
     }
   };
 
-
-  const fetchConsultationHistory = async () => {
+  const fetchConsultationHistoryWithParams = async (
+    docName: string,
+    fromD: string,
+    toD: string,
+    dept: string
+  ) => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams();
-      if (selectedDoctor) queryParams.set("doctor_name", selectedDoctor);
-      if (fromDate) queryParams.set("from_date", fromDate);
-      if (toDate) queryParams.set("to_date", toDate);
-      if (selectedDepartment) queryParams.set("department", selectedDepartment);
+      if (docName) queryParams.set("doctor_name", docName);
+      if (fromD) queryParams.set("from_date", fromD);
+      if (toD) queryParams.set("to_date", toD);
+      if (dept) queryParams.set("department", dept);
 
       const res = await apiFetch<{ history?: ConsultationRecord[] }>(
         `/api/doctors-history?${queryParams.toString()}`
@@ -103,6 +116,25 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchConsultationHistory = async () => {
+    return fetchConsultationHistoryWithParams(selectedDoctor, fromDate, toDate, selectedDepartment);
+  };
+
+  const handleDoctorChange = (doctorName: string) => {
+    setSelectedDoctor(doctorName);
+    let deptVal = selectedDepartment;
+    if (doctorName && doctorDeptMap[doctorName]) {
+      deptVal = doctorDeptMap[doctorName];
+      setSelectedDepartment(deptVal);
+    }
+    void fetchConsultationHistoryWithParams(doctorName, fromDate, toDate, deptVal);
+  };
+
+  const handleDepartmentChange = (deptName: string) => {
+    setSelectedDepartment(deptName);
+    void fetchConsultationHistoryWithParams(selectedDoctor, fromDate, toDate, deptName);
   };
 
   useEffect(() => {
@@ -200,7 +232,7 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
                 <label className="filter-label">Doctor</label>
                 <Select
                   value={selectedDoctor}
-                  onChange={(e) => setSelectedDoctor(e.target.value)}
+                  onChange={(e) => handleDoctorChange(e.target.value)}
                   aria-label="Doctor filter"
                 >
                   <option value="">Select Doctor</option>
@@ -236,7 +268,7 @@ export default function DoctorsHistoryPage({ setNotice, onOpenPatient }: Props) 
                 <label className="filter-label">Department</label>
                 <Select
                   value={selectedDepartment}
-                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  onChange={(e) => handleDepartmentChange(e.target.value)}
                   aria-label="Department filter"
                 >
                   <option value="">All</option>

@@ -460,6 +460,11 @@ def test_dashboard_revenue_uses_successful_payment_date(app_client):
     assert revenue["monthly_total"] == 1250
     assert any(row["label"] == "UPI" and row["count"] == 1250 for row in revenue["payment_mode_breakdown"])
 
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE invoice_payments SET created_at = '2000-01-01 00:00:00' WHERE invoice_id = ?", (invoice_id,))
+        conn.commit()
+
     dated_dashboard = app_client.get("/api/dashboard/hospital-summary?date=2000-01-01")
     assert dated_dashboard.status_code == 200
     dated_revenue = dated_dashboard.get_json()["revenue"]

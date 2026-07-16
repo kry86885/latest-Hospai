@@ -528,16 +528,23 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
   }, [doctorScheduleOptions]);
 
   const filteredDoctorOptions = useMemo(() => {
-    if (!appointment.department) return doctorOptions;
+    const selectedDate = appointment.appointmentDateTime ? appointment.appointmentDateTime.split("T")[0] : "";
     const names = new Set<string>();
     doctorScheduleOptions.forEach((item) => {
-      if (String(item.department || "").trim() === appointment.department) {
-        const name = String(item.doctor_name || "").trim();
-        if (name) names.add(name);
+      if (appointment.department && String(item.department || "").trim() !== appointment.department) {
+        return;
       }
+      if (selectedDate) {
+        const itemDate = String((item as any).schedule_date || "").split("T")[0];
+        if (itemDate !== selectedDate) {
+          return;
+        }
+      }
+      const name = String(item.doctor_name || "").trim();
+      if (name) names.add(name);
     });
     return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [appointment.department, doctorOptions, doctorScheduleOptions]);
+  }, [appointment.department, appointment.appointmentDateTime, doctorScheduleOptions]);
 
   const doctorsAvailableByDate = useMemo(() => {
     if (!appointment.appointmentDateTime) return doctorOptions;
@@ -717,10 +724,14 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
           const dateVal = String(value || "");
           const selectedDate = dateVal.split("T")[0];
           const doctorsOnDate = doctorScheduleOptions
-            .filter((item) => String((item as any).schedule_date || "").split("T")[0] === selectedDate)
+            .filter((item) => {
+              const matchesDate = String((item as any).schedule_date || "").split("T")[0] === selectedDate;
+              const matchesDept = !prev.department || String(item.department || "").trim() === prev.department;
+              return matchesDate && matchesDept;
+            })
             .map((item) => String(item.doctor_name || "").trim())
             .filter(Boolean);
-          const doctorIsValid = !prev.doctor || doctorsOnDate.length === 0 || doctorsOnDate.includes(prev.doctor);
+          const doctorIsValid = prev.doctor && doctorsOnDate.includes(prev.doctor);
           return {
             ...prev,
             appointmentDateTime: value,
@@ -1203,7 +1214,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
         <div className="appointment-title-bar">APPOINTMENT IN</div>
         <div className="panel patient-registration-card appointment-card"><h3>PATIENT SEARCH & APPOINTMENT INTAKE</h3><Input value={appointment.search} onChange={handleAppointmentChange("search")} placeholder="Search by Patient ID / Mobile / Aadhaar / Name" onKeyDown={(event) => { if (event.key === "Enter") void handleSearchPatient(); }} /><div className="form-actions"><Button variant="secondary" type="button" onClick={handleSearchPatient}>Search Patient</Button><Button variant="ghost" type="button" onClick={() => setAppointment(EMPTY_APPOINTMENT_FORM)}>New Patient</Button></div></div>
         <div className="panel patient-registration-card appointment-card"><h3>SCHEDULE APPOINTMENT</h3><div className="grid-form appointment-grid-form">
-          <Label>Patient Type<Select value={appointment.patientType} onChange={handleAppointmentChange("patientType")}><option>New Patient</option><option>Existing Patient</option></Select></Label><Label>Patient ID<Input value={appointment.appointmentPatientId} onChange={handleAppointmentChange("appointmentPatientId")} placeholder="Auto-filled for existing patient" /></Label><Label><span className="label-text">Patient Name <span className="required-marker">*</span></span><Input value={appointment.appointmentPatientName} onChange={handleAppointmentChange("appointmentPatientName")} placeholder="Walk-in or existing patient" /></Label><Label><span className="label-text">Appointment Date &amp; Time <span className="required-marker">*</span></span><div className="appointment-time-with-period"><Input type="datetime-local" value={appointment.appointmentDateTime} onChange={handleAppointmentChange("appointmentDateTime")} /><span>{getAmPmLabel(appointment.appointmentDateTime)}</span></div></Label><Label>Department<Select value={appointment.department} onChange={handleAppointmentChange("department")}><option value="">Select department</option>{departments.map((department) => { const name = String(department.department_name || "").trim(); if (!name) return null; return <option key={department.id} value={name}>{name}</option>; })}</Select></Label><Label>Doctor<Select value={appointment.doctor} onChange={handleAppointmentChange("doctor")}><option value="">Select doctor</option>{filteredDoctorOptions.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}</Select></Label><Label>Visit Type<Select value={appointment.visitType} onChange={handleAppointmentChange("visitType")}><option>OP</option><option>IP</option><option>Emergency</option></Select></Label><Label>Appointment Kind<Select value={appointment.appointmentKind} onChange={handleAppointmentChange("appointmentKind")}><option>New</option><option>Follow Up</option><option>Review</option></Select></Label><Label className="span-2">Chief Complaint / Reason for Visit<Textarea value={appointment.chiefComplaint} onChange={handleAppointmentChange("chiefComplaint")} rows={3} placeholder="Fever since 3 days, body pains, headache..." /></Label>
+          <Label>Patient Type<Select value={appointment.patientType} onChange={handleAppointmentChange("patientType")}><option>New Patient</option><option>Existing Patient</option></Select></Label><Label>Patient ID<Input value={appointment.appointmentPatientId} onChange={handleAppointmentChange("appointmentPatientId")} placeholder="Auto-filled for existing patient" /></Label><Label><span className="label-text">Patient Name <span className="required-marker">*</span></span><Input value={appointment.appointmentPatientName} onChange={handleAppointmentChange("appointmentPatientName")} placeholder="Walk-in or existing patient" /></Label><Label><span className="label-text">Appointment Date &amp; Time <span className="required-marker">*</span></span><div className="appointment-time-with-period"><Input type="datetime-local" value={appointment.appointmentDateTime} onChange={handleAppointmentChange("appointmentDateTime")} /><span>{getAmPmLabel(appointment.appointmentDateTime)}</span></div></Label><Label>Department<Select value={appointment.department} onChange={handleAppointmentChange("department")}><option value="">Select department</option>{departments.map((department) => { const name = String(department.department_name || "").trim(); if (!name) return null; return <option key={department.id} value={name}>{name}</option>; })}</Select></Label><Label>Doctor<Select value={appointment.doctor} onChange={handleAppointmentChange("doctor")}><option value="">Select doctor</option>{filteredDoctorOptions.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}{appointment.appointmentDateTime && filteredDoctorOptions.length === 0 && <option value="" disabled>No doctors available (please transfer to other doctor)</option>}</Select>{appointment.appointmentDateTime && filteredDoctorOptions.length === 0 && <span style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", display: "block", fontWeight: "500" }}>No doctors available, please transfer to other doctor / date</span>}</Label><Label>Visit Type<Select value={appointment.visitType} onChange={handleAppointmentChange("visitType")}><option>OP</option><option>IP</option><option>Emergency</option></Select></Label><Label>Appointment Kind<Select value={appointment.appointmentKind} onChange={handleAppointmentChange("appointmentKind")}><option>New</option><option>Follow Up</option><option>Review</option></Select></Label><Label className="span-2">Chief Complaint / Reason for Visit<Textarea value={appointment.chiefComplaint} onChange={handleAppointmentChange("chiefComplaint")} rows={3} placeholder="Fever since 3 days, body pains, headache..." /></Label>
           <Label>Blood Pressure<div className="bp-split-wrap"><Input value={bpSys} onChange={(e) => { setBpSys(e.target.value); setAppointment((prev) => ({ ...prev, bp: `${e.target.value}/${bpDia}` })); }} placeholder="120" inputMode="numeric" /><span className="bp-separator">/</span><Input value={bpDia} onChange={(e) => { setBpDia(e.target.value); setAppointment((prev) => ({ ...prev, bp: `${bpSys}/${e.target.value}` })); }} placeholder="80" inputMode="numeric" /></div></Label>
           <Label>Temperature<div className="vital-input-wrap"><Input value={appointment.temperature} onChange={handleAppointmentChange("temperature")} placeholder="98.6" inputMode="decimal" /><span className="vital-unit-badge">°F</span></div></Label>
           <Label>Pulse<div className="vital-input-wrap"><Input value={appointment.pulse} onChange={handleAppointmentChange("pulse")} placeholder="72" inputMode="numeric" /><span className="vital-unit-badge">bpm</span></div></Label>

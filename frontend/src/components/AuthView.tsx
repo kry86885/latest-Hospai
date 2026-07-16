@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Button, Input, Label } from "./ui";
+import { Button, Input } from "./ui";
 import BrandLogo from "./BrandLogo";
 
 type Props = {
@@ -24,15 +24,15 @@ export default function AuthView({ onLogin, initialHospitalCode }: Props) {
         <p className="muted">Sign in to manage patients, OCR documents, and admissions.</p>
 
         <form className="auth-form" onSubmit={onLogin}>
-          <Label>
+          <label className="ui-label">
             Hospital Code
             <Input name="hospital_code" defaultValue={initialHospitalCode} placeholder="hosp-default" required />
-          </Label>
-          <Label>
+          </label>
+          <label className="ui-label">
             Username
             <Input name="username" placeholder="username" required />
-          </Label>
-          <Label>
+          </label>
+          <label className="ui-label">
             Password
             <div style={{ position: "relative" }}>
               <Input name="password" type={showPassword ? "text" : "password"} placeholder="••••••" required style={{ paddingRight: "44px" }} />
@@ -66,7 +66,7 @@ export default function AuthView({ onLogin, initialHospitalCode }: Props) {
                 )}
               </button>
             </div>
-          </Label>
+          </label>
           <Button type="submit" variant="primary">
             Login
           </Button>

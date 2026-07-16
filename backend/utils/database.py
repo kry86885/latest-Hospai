@@ -3694,6 +3694,63 @@ def create_invoice(data):
             ),
         )
         invoice_id = cursor.lastrowid
+
+        # If module is Lab/Diagnostics, create diagnostic record
+        module_upper = str(data.get("module") or "").upper()
+        if module_upper in ["LAB", "DIAGNOSTICS", "DIAGNOSTIC"]:
+            cursor.execute("SELECT id FROM diagnostics WHERE invoice_no = ?", (data["invoice_no"],))
+            existing_diag = cursor.fetchone()
+            if not existing_diag:
+                # Fetch patient details
+                patient_name = None
+                age = None
+                gender = None
+                if data.get("patient_id"):
+                    cursor.execute("SELECT name, middle_name, last_name, age, gender FROM patients WHERE patient_id = ?", (data["patient_id"],))
+                    pat = cursor.fetchone()
+                    if pat:
+                        patient_name = " ".join(filter(None, [pat["name"], pat["middle_name"], pat["last_name"]]))
+                        age = pat["age"]
+                        gender = pat["gender"]
+                
+                # Compute discount and tax percentages
+                disc_pct = float(data.get("discount", 0)) / max(total_amount, 1.0) * 100.0 if total_amount > 0 else 0.0
+                tax_pct = float(data.get("tax", 0)) / max(total_amount - float(data.get("discount", 0)), 1.0) * 100.0 if (total_amount - float(data.get("discount", 0))) > 0 else 0.0
+
+                from datetime import datetime
+                cursor.execute(
+                    """
+                    INSERT INTO diagnostics (
+                        invoice_no, patient_id, test_name, amount, paid_amount, due_amount, status,
+                        patient_name, age, gender, department, visit_type,
+                        bill_date, payment_mode, transaction_id,
+                        discount_percentage, discount_amount, tax_percentage, tax_amount, remarks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        data["invoice_no"],
+                        data.get("patient_id"),
+                        f"{data.get('module')} services",
+                        total_amount,
+                        paid_amount,
+                        due_amount,
+                        data.get("payment_status", "due"),
+                        patient_name,
+                        age,
+                        gender,
+                        data.get("module"),
+                        "OPD",
+                        datetime.now().strftime("%Y-%m-%d"),
+                        "Cash",
+                        None,
+                        disc_pct,
+                        data.get("discount", 0),
+                        tax_pct,
+                        data.get("tax", 0),
+                        data.get("referral_source") or "Created from Billing module"
+                    )
+                )
+
         conn.commit()
         return invoice_id
 
@@ -3783,13 +3840,27 @@ def update_invoice(invoice_id, data):
                 invoice_id,
             ),
         )
+        updated = cursor.rowcount > 0
+        if module_name in ["LAB", "DIAGNOSTICS", "DIAGNOSTIC"]:
+            cursor.execute(
+                """
+                UPDATE diagnostics
+                SET paid_amount = ?, due_amount = ?, status = ?, amount = ?
+                WHERE invoice_no = ?
+                """,
+                (paid_amount, due_amount, payment_status, total_amount, existing["invoice_no"]),
+            )
         conn.commit()
-        return cursor.rowcount > 0
+        return updated
 
 
 def delete_invoice(invoice_id):
     with get_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("SELECT invoice_no FROM invoices WHERE id = ?", (invoice_id,))
+        inv = cursor.fetchone()
+        if inv and inv["invoice_no"]:
+            cursor.execute("DELETE FROM diagnostics WHERE invoice_no = ?", (inv["invoice_no"],))
         cursor.execute("DELETE FROM invoice_payments WHERE invoice_id = ?", (invoice_id,))
         cursor.execute("DELETE FROM invoices WHERE id = ?", (invoice_id,))
         deleted = cursor.rowcount > 0
@@ -3845,6 +3916,22 @@ def record_invoice_payment(invoice_id, data):
             """,
             (paid_total, due_total, status, invoice_id),
         )
+        
+        # Get invoice_no and module to update corresponding diagnostics record if needed
+        cursor.execute("SELECT invoice_no, module FROM invoices WHERE id = ?", (invoice_id,))
+        inv = cursor.fetchone()
+        if inv:
+            module_upper = str(inv["module"] or "").upper()
+            if module_upper in ["LAB", "DIAGNOSTICS", "DIAGNOSTIC"]:
+                cursor.execute(
+                    """
+                    UPDATE diagnostics
+                    SET paid_amount = ?, due_amount = ?, status = ?, payment_mode = ?
+                    WHERE invoice_no = ?
+                    """,
+                    (paid_total, due_total, status, data["payment_mode"], inv["invoice_no"]),
+                )
+                
         conn.commit()
         return payment_id
 
@@ -4778,6 +4865,13 @@ def _diagnostic_amounts(data, existing=None):
     return net_amount, paid_amount, due_amount, status, discount_percentage, discount_amount, tax_percentage, tax_amount
 
 
+def _blank_to_none(value):
+    """Convert empty strings to None so PostgreSQL DATE/TIMESTAMP columns don't fail."""
+    if value == "" or value is None:
+        return None
+    return value
+
+
 def create_diagnostic_record(data):
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -4814,23 +4908,58 @@ def create_diagnostic_record(data):
                 data.get("patient_name"),
                 data.get("age"),
                 data.get("gender"),
-                data.get("department"),
-                data.get("visit_type"),
-                data.get("visit_id"),
-                data.get("bill_date"),
-                data.get("due_date"),
-                data.get("payment_mode"),
-                data.get("transaction_id"),
+                _blank_to_none(data.get("department")),
+                _blank_to_none(data.get("visit_type")),
+                _blank_to_none(data.get("visit_id")),
+                _blank_to_none(data.get("bill_date")),
+                _blank_to_none(data.get("due_date")),
+                _blank_to_none(data.get("payment_mode")),
+                _blank_to_none(data.get("transaction_id")),
                 discount_percentage,
                 discount_amount,
                 tax_percentage,
                 tax_amount,
-                data.get("report_delivery_mode"),
-                data.get("report_delivery_date"),
-                data.get("remarks"),
+                _blank_to_none(data.get("report_delivery_mode")),
+                _blank_to_none(data.get("report_delivery_date")),
+                _blank_to_none(data.get("remarks")),
             ),
         )
         diagnostic_id = cursor.lastrowid
+
+        # Automatically insert corresponding global billing invoice if it doesn't exist
+        invoice_no = data.get("invoice_no")
+        if invoice_no:
+            cursor.execute("SELECT id FROM invoices WHERE invoice_no = ?", (invoice_no,))
+            existing_inv = cursor.fetchone()
+            if not existing_inv:
+                cursor.execute(
+                    """
+                    INSERT INTO invoices (
+                        invoice_no, patient_id, module, doctor_name, clinic_name, referral_source,
+                        subtotal, tax, discount, total_amount, paid_amount, due_amount, payment_status, created_by,
+                        advance_amount, refunded_amount
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        invoice_no,
+                        data.get("patient_id"),
+                        "LAB",
+                        data.get("doctor_name"),
+                        None,
+                        data.get("remarks") or "Lab Billing",
+                        data.get("amount", 0),
+                        tax_amount,
+                        discount_amount,
+                        total_amount,
+                        paid_amount,
+                        due_amount,
+                        status,
+                        "System",
+                        0.0,
+                        0.0
+                    )
+                )
+
         conn.commit()
         return diagnostic_id
 
@@ -4920,23 +5049,43 @@ def update_diagnostic_record(diagnostic_id, data):
                 data.get("patient_name", ex("patient_name")),
                 data.get("age", ex("age")),
                 data.get("gender", ex("gender")),
-                data.get("department", ex("department")),
-                data.get("visit_type", ex("visit_type")),
-                data.get("visit_id", ex("visit_id")),
-                data.get("bill_date", ex("bill_date")),
-                data.get("due_date", ex("due_date")),
-                data.get("payment_mode", ex("payment_mode")),
-                data.get("transaction_id", ex("transaction_id")),
+                _blank_to_none(data.get("department", ex("department"))),
+                _blank_to_none(data.get("visit_type", ex("visit_type"))),
+                _blank_to_none(data.get("visit_id", ex("visit_id"))),
+                _blank_to_none(data.get("bill_date", ex("bill_date"))),
+                _blank_to_none(data.get("due_date", ex("due_date"))),
+                _blank_to_none(data.get("payment_mode", ex("payment_mode"))),
+                _blank_to_none(data.get("transaction_id", ex("transaction_id"))),
                 discount_percentage,
                 discount_amount,
                 tax_percentage,
                 tax_amount,
-                data.get("report_delivery_mode", ex("report_delivery_mode")),
-                data.get("report_delivery_date", ex("report_delivery_date")),
-                data.get("remarks", ex("remarks")),
+                _blank_to_none(data.get("report_delivery_mode", ex("report_delivery_mode"))),
+                _blank_to_none(data.get("report_delivery_date", ex("report_delivery_date"))),
+                _blank_to_none(data.get("remarks", ex("remarks"))),
                 diagnostic_id,
             ),
         )
+        # Update corresponding global billing invoice if it exists
+        inv_no = data.get("invoice_no", existing["invoice_no"])
+        if inv_no:
+            cursor.execute(
+                """
+                UPDATE invoices
+                SET paid_amount = ?, due_amount = ?, payment_status = ?, total_amount = ?, subtotal = ?, tax = ?, discount = ?
+                WHERE invoice_no = ?
+                """,
+                (
+                    paid_amount,
+                    due_amount,
+                    status,
+                    total_amount,
+                    data.get("amount", existing["amount"]),
+                    tax_amount,
+                    discount_amount,
+                    inv_no
+                )
+            )
         conn.commit()
         return cursor.rowcount > 0
 
@@ -4944,6 +5093,10 @@ def update_diagnostic_record(diagnostic_id, data):
 def delete_diagnostic_record(diagnostic_id):
     with get_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("SELECT invoice_no FROM diagnostics WHERE id = ?", (diagnostic_id,))
+        diag = cursor.fetchone()
+        if diag and diag["invoice_no"]:
+            cursor.execute("DELETE FROM invoices WHERE invoice_no = ?", (diag["invoice_no"],))
         cursor.execute("DELETE FROM diagnostics WHERE id = ?", (diagnostic_id,))
         deleted = cursor.rowcount > 0
         conn.commit()
