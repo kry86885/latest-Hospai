@@ -54,6 +54,12 @@ type DoctorPayout = {
   status?: string | null;
   paid_date?: string | null;
   notes?: string | null;
+  payments?: Array<{
+    id: number;
+    amount: number;
+    paid_date: string;
+    notes?: string | null;
+  }>;
 };
 
 type LedgerForm = {
@@ -84,6 +90,7 @@ type DoctorForm = {
   payout_month: string;
   amount: string;
   paid_amount: string;
+  amount_to_pay: string;
   paid_date: string;
   status: string;
   notes: string;
@@ -126,6 +133,7 @@ const DEFAULT_DOCTOR_FORM: DoctorForm = {
   payout_month: "",
   amount: "",
   paid_amount: "",
+  amount_to_pay: "",
   paid_date: "",
   status: "",
   notes: "",
@@ -280,17 +288,25 @@ export default function AccountsPage({ setNotice, view = "ledger" }: Props) {
     try {
       const payoutId = Number(doctorForm.id);
       const path = payoutId ? `/api/accounts/doctors/${payoutId}` : "/api/accounts/doctors";
+      
+      const payload: any = {
+        doctor_name: doctorForm.doctor_name.trim(),
+        payout_month: doctorForm.payout_month,
+        amount: Number(doctorForm.amount) || 0,
+        paid_date: doctorForm.paid_date || undefined,
+        status: doctorForm.status,
+        notes: doctorForm.notes.trim() || undefined,
+      };
+
+      if (payoutId) {
+        payload.amount_to_pay = Number(doctorForm.amount_to_pay) || 0;
+      } else {
+        payload.paid_amount = Number(doctorForm.paid_amount) || 0;
+      }
+
       await apiFetch(path, {
         method: payoutId ? "PUT" : "POST",
-        body: JSON.stringify({
-          doctor_name: doctorForm.doctor_name.trim(),
-          payout_month: doctorForm.payout_month,
-          amount: Number(doctorForm.amount) || 0,
-          paid_amount: Number(doctorForm.paid_amount) || 0,
-          paid_date: doctorForm.paid_date || undefined,
-          status: doctorForm.status,
-          notes: doctorForm.notes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       setDoctorForm({ ...DEFAULT_DOCTOR_FORM });
       setNotice({ type: "success", message: payoutId ? "Doctor payout updated." : "Doctor payout recorded." });
@@ -564,98 +580,210 @@ export default function AccountsPage({ setNotice, view = "ledger" }: Props) {
     </div>
   );
 
-  const renderDoctors = () => (
-    <div className="panel">
-      <div className="module-panel-head">
-        <h3>Doctor Payouts</h3>
-      </div>
-      <form className="module-form-grid module-sales-grid" onSubmit={handleDoctorSubmit}>
-        <Label>
-          Doctor Name
-          <Input value={doctorForm.doctor_name} onChange={(event) => setDoctorForm((current) => ({ ...current, doctor_name: event.target.value }))} placeholder="Doctor" aria-label="Doctor name" />
-        </Label>
-        <Label>
-          Payout Month
-          <Input type="month" value={doctorForm.payout_month} onChange={(event) => setDoctorForm((current) => ({ ...current, payout_month: event.target.value }))} aria-label="Doctor payout month" />
-        </Label>
-        <Label>
-          Total Amount
-          <Input type="number" min={0} value={doctorForm.amount} onChange={(event) => setDoctorForm((current) => ({ ...current, amount: event.target.value }))} placeholder="Total amount" aria-label="Doctor payout amount" />
-        </Label>
-        <Label>
-          Paid Amount
-          <Input type="number" min={0} value={doctorForm.paid_amount} onChange={(event) => setDoctorForm((current) => ({ ...current, paid_amount: event.target.value }))} placeholder="Paid amount" aria-label="Doctor payout paid amount" />
-        </Label>
-        <Label>
-          Paid Date
-          <Input type="date" value={doctorForm.paid_date} onChange={(event) => setDoctorForm((current) => ({ ...current, paid_date: event.target.value }))} aria-label="Doctor paid date" />
-        </Label>
-        <Label>
-          Status
-          <Select value={doctorForm.status} onChange={(event) => setDoctorForm((current) => ({ ...current, status: event.target.value }))} aria-label="Doctor payout status">
-            <option value="pending">Pending</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-          </Select>
-        </Label>
-        <Label>
-          Notes
-          <Input value={doctorForm.notes} onChange={(event) => setDoctorForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes" aria-label="Doctor payout notes" />
-        </Label>
-        <Button type="submit" variant="primary" disabled={savingDoctor}>
-          {savingDoctor ? "Saving..." : doctorForm.id ? "Update Payout" : "Record Payout"}
-        </Button>
-      </form>
+  const renderDoctors = () => {
+    const selectedPayout = doctorPayouts.find((p) => String(p.id) === doctorForm.id);
+    const currentDue = Math.max((Number(doctorForm.amount) || 0) - (Number(doctorForm.paid_amount) || 0), 0);
 
-      {doctorPayouts.length === 0 ? (
-        <p className="muted">No doctor payouts yet.</p>
-      ) : (
-        <Table className="module-table module-table-accounts-doctors" aria-label="Doctor payouts table">
-          <TableHead>
-            <TableCell>Doctor</TableCell>
-            <TableCell>Month</TableCell>
-            <TableCell>Total</TableCell>
-            <TableCell>Paid</TableCell>
-            <TableCell>Due</TableCell>
-            <TableCell>Actions</TableCell>
-          </TableHead>
-          {doctorPayouts.slice(0, 10).map((payout) => (
-            <TableRow key={payout.id}>
-              <TableCell>{payout.doctor_name}</TableCell>
-              <TableCell>{payout.payout_month}</TableCell>
-              <TableCell>{formatCurrency(payout.amount)}</TableCell>
-              <TableCell>{formatCurrency(payout.paid_amount)}</TableCell>
-              <TableCell>{formatCurrency(payout.due_amount)}</TableCell>
-              <TableCell>
-                <div className="module-inline-actions">
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      setDoctorForm({
-                        id: String(payout.id),
-                        doctor_name: payout.doctor_name,
-                        payout_month: payout.payout_month,
-                        amount: String(payout.amount || 0),
-                        paid_amount: String(payout.paid_amount || 0),
-                        paid_date: payout.paid_date || "",
-                        status: payout.status || "pending",
-                        notes: payout.notes || "",
-                      })
-                    }
-                  >
-                    Edit
-                  </Button>
-                  <Button type="button" variant="destructive" onClick={() => void deleteRecord(`/api/accounts/doctors/${payout.id}`, "doctor payout")}>
-                    Delete
-                  </Button>
+    return (
+      <div className="panel">
+        <div className="module-panel-head">
+          <h3>Doctor Payouts</h3>
+        </div>
+        <form className="module-form-grid module-sales-grid" onSubmit={handleDoctorSubmit}>
+          <Label>
+            Doctor Name
+            <Input
+              value={doctorForm.doctor_name}
+              onChange={(event) => setDoctorForm((current) => ({ ...current, doctor_name: event.target.value }))}
+              placeholder="Doctor"
+              aria-label="Doctor name"
+              disabled={!!doctorForm.id}
+            />
+          </Label>
+          <Label>
+            Payout Month
+            <Input
+              type="month"
+              value={doctorForm.payout_month}
+              onChange={(event) => setDoctorForm((current) => ({ ...current, payout_month: event.target.value }))}
+              aria-label="Doctor payout month"
+              disabled={!!doctorForm.id}
+            />
+          </Label>
+          <Label>
+            Total Payout Amount
+            <Input
+              type="number"
+              min={0}
+              value={doctorForm.amount}
+              onChange={(event) => setDoctorForm((current) => ({ ...current, amount: event.target.value }))}
+              placeholder="Total amount"
+              aria-label="Doctor payout amount"
+            />
+          </Label>
+          
+          {doctorForm.id ? (
+            <>
+              <Label>
+                Paid so far
+                <Input
+                  type="text"
+                  value={formatCurrency(Number(doctorForm.paid_amount) || 0)}
+                  disabled
+                  aria-label="Doctor payout paid amount"
+                />
+              </Label>
+              <Label>
+                Due Amount
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <Input
+                    type="text"
+                    value={formatCurrency(currentDue)}
+                    disabled
+                    aria-label="Remaining due amount"
+                  />
+                  {currentDue > 0 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setDoctorForm((curr) => ({ ...curr, amount_to_pay: String(currentDue) }))}
+                    >
+                      Clear Due
+                    </Button>
+                  )}
                 </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </Table>
-      )}
-    </div>
-  );
+              </Label>
+              <Label>
+                Amount to Pay Now
+                <Input
+                  type="number"
+                  min={0}
+                  max={currentDue}
+                  value={doctorForm.amount_to_pay}
+                  onChange={(event) => setDoctorForm((current) => ({ ...current, amount_to_pay: event.target.value }))}
+                  placeholder="Amount to pay now"
+                  aria-label="Amount to pay now"
+                />
+              </Label>
+            </>
+          ) : (
+            <Label>
+              Paid Amount
+              <Input
+                type="number"
+                min={0}
+                value={doctorForm.paid_amount}
+                onChange={(event) => setDoctorForm((current) => ({ ...current, paid_amount: event.target.value }))}
+                placeholder="Paid amount"
+                aria-label="Doctor payout paid amount"
+              />
+            </Label>
+          )}
+
+          <Label>
+            Payment Date
+            <Input
+              type="date"
+              value={doctorForm.paid_date}
+              onChange={(event) => setDoctorForm((current) => ({ ...current, paid_date: event.target.value }))}
+              aria-label="Doctor paid date"
+            />
+          </Label>
+          <Label>
+            Status
+            <Select value={doctorForm.status} onChange={(event) => setDoctorForm((current) => ({ ...current, status: event.target.value }))} aria-label="Doctor payout status">
+              <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="paid">Paid</option>
+            </Select>
+          </Label>
+          <Label>
+            Notes
+            <Input value={doctorForm.notes} onChange={(event) => setDoctorForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes" aria-label="Doctor payout notes" />
+          </Label>
+          <div style={{ display: "flex", gap: "0.5rem", gridColumn: "span 2" }}>
+            <Button type="submit" variant="primary" disabled={savingDoctor}>
+              {savingDoctor ? "Saving..." : doctorForm.id ? "Update Payout" : "Record Payout"}
+            </Button>
+            {doctorForm.id && (
+              <Button type="button" variant="secondary" onClick={() => setDoctorForm(DEFAULT_DOCTOR_FORM)}>
+                Cancel Edit
+              </Button>
+            )}
+          </div>
+        </form>
+
+        {doctorForm.id && selectedPayout?.payments && selectedPayout.payments.length > 0 && (
+          <div style={{ marginTop: "2rem", marginBottom: "2rem" }}>
+            <h4 style={{ marginBottom: "0.75rem", fontWeight: 600 }}>Payment History Timeline</h4>
+            <Table className="module-table" aria-label="Payment history table">
+              <TableHead>
+                <TableCell>Date & Time</TableCell>
+                <TableCell>Amount Paid</TableCell>
+                <TableCell>Notes</TableCell>
+              </TableHead>
+              {selectedPayout.payments.map((pmt: any) => (
+                <TableRow key={pmt.id}>
+                  <TableCell>{new Date(pmt.paid_date).toLocaleString("en-IN")}</TableCell>
+                  <TableCell>{formatCurrency(pmt.amount)}</TableCell>
+                  <TableCell>{pmt.notes || "-"}</TableCell>
+                </TableRow>
+              ))}
+            </Table>
+          </div>
+        )}
+
+        {doctorPayouts.length === 0 ? (
+          <p className="muted">No doctor payouts yet.</p>
+        ) : (
+          <Table className="module-table module-table-accounts-doctors" aria-label="Doctor payouts table">
+            <TableHead>
+              <TableCell>Doctor</TableCell>
+              <TableCell>Month</TableCell>
+              <TableCell>Total</TableCell>
+              <TableCell>Paid</TableCell>
+              <TableCell>Due</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableHead>
+            {doctorPayouts.slice(0, 10).map((payout) => (
+              <TableRow key={payout.id}>
+                <TableCell>{payout.doctor_name}</TableCell>
+                <TableCell>{payout.payout_month}</TableCell>
+                <TableCell>{formatCurrency(payout.amount)}</TableCell>
+                <TableCell>{formatCurrency(payout.paid_amount)}</TableCell>
+                <TableCell>{formatCurrency(payout.due_amount)}</TableCell>
+                <TableCell>
+                  <div className="module-inline-actions">
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setDoctorForm({
+                          id: String(payout.id),
+                          doctor_name: payout.doctor_name,
+                          payout_month: payout.payout_month,
+                          amount: String(payout.amount || 0),
+                          paid_amount: String(payout.paid_amount || 0),
+                          amount_to_pay: "",
+                          paid_date: new Date().toISOString().slice(0, 10),
+                          status: payout.status || "pending",
+                          notes: payout.notes || "",
+                        })
+                      }
+                    >
+                      Edit
+                    </Button>
+                    <Button type="button" variant="destructive" onClick={() => void deleteRecord(`/api/accounts/doctors/${payout.id}`, "doctor payout")}>
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </Table>
+        )}
+      </div>
+    );
+  };
 
   const meta = ACCOUNTS_VIEW_CONFIG[view];
 

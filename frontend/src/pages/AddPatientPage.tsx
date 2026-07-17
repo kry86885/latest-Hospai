@@ -768,7 +768,7 @@ export default function AddPatientPage({ onCreate, selectedPatient, ocrLanguage,
         patientType: "Existing Patient",
         appointmentPatientId: patient.patient_id || "",
         appointmentPatientName: [patient.name, patient.middle_name, patient.last_name].filter(Boolean).join(" ").trim(),
-        department: patient.department || prev.department,
+        department: (patient as any).department || prev.department,
         doctor: prev.doctor,
         consultationFee: prev.consultationFee,
       }));

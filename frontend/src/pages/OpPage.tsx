@@ -641,12 +641,9 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
                 );
               })}
             </Select>
-<<<<<<< HEAD
-<Input type="date" value={scheduleForm.schedule_date} onChange={(event) => setScheduleForm((current) => ({ ...current, schedule_date: event.target.value }))} aria-label="Schedule date" disabled={!canEdit} />
+            <Input type="date" value={scheduleForm.schedule_date} onChange={(event) => setScheduleForm((current) => ({ ...current, schedule_date: event.target.value }))} aria-label="Schedule date" disabled={!canEdit} />
             <div className="op-time-field"><Input type="time" value={scheduleForm.start_time} onChange={(event) => setScheduleForm((current) => ({ ...current, start_time: event.target.value }))} aria-label="Start time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.start_time)}</span></div>
             <div className="op-time-field"><Input type="time" value={scheduleForm.end_time} onChange={(event) => setScheduleForm((current) => ({ ...current, end_time: event.target.value }))} aria-label="End time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.end_time)}</span></div>
-=======
->>>>>>> origin/main
             <Input type="number" min={0} value={scheduleForm.consultation_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, consultation_fee: event.target.value }))} placeholder="Consultation fee" aria-label="Consultation fee" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.review_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, review_fee: event.target.value }))} placeholder="Review fee" aria-label="Review fee" disabled={!canEdit} />
             <Select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value }))} aria-label="Schedule status" disabled={!canEdit}>
@@ -671,12 +668,9 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
               <TableHead>
                 <TableCell>Doctor</TableCell>
                 <TableCell>Department</TableCell>
-<<<<<<< HEAD
                 <TableCell>Time</TableCell>
-=======
                 <TableCell>Consult Fee</TableCell>
                 <TableCell>Review Fee</TableCell>
->>>>>>> origin/main
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableHead>
@@ -684,12 +678,9 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
                 <TableRow key={schedule.id}>
                   <TableCell>{schedule.doctor_name}</TableCell>
                   <TableCell>{schedule.department || "-"}</TableCell>
-<<<<<<< HEAD
                   <TableCell>{`${schedule.start_time} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
-=======
                   <TableCell>{schedule.consultation_fee ? `₹${schedule.consultation_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.review_fee ? `₹${schedule.review_fee}` : "-"}</TableCell>
->>>>>>> origin/main
                   <TableCell>{schedule.status || "available"}</TableCell>
                   <TableCell>
                     <div className="module-inline-actions">

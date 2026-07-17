@@ -227,8 +227,8 @@ def is_allowed_origin(origin: str | None) -> bool:
     # Allow all HospAI HTTPS subdomains (staging/prod/custom app surfaces).
     if re.match(r"^https://([a-z0-9-]+\.)*hospai\.ai$", origin):
         return True
-    # Allow localhost dev servers on any port (e.g. Vite 5173/5174/4173).
-    return re.match(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$", origin) is not None
+    # Allow localhost and private LAN dev servers on any port (e.g. Vite 5173/5174/4173).
+    return re.match(r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$", origin) is not None
 
 
 CORS(
@@ -238,7 +238,7 @@ CORS(
             "origins": [
                 r"^https://([a-z0-9-]+\.)*hospai\.ai$",
                 "null",
-                r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+                r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$",
                 *sorted(ALLOWED_ORIGINS),
             ]
         }
@@ -1039,7 +1039,7 @@ def format_inr_pdf(amount):
         value = float(amount or 0)
     except (TypeError, ValueError):
         value = 0.0
-    return "₹" + f"{value:,.0f}"
+    return "â‚¹" + f"{value:,.0f}"
 
 
 def _int_value(value):
@@ -1340,7 +1340,7 @@ def _dashboard_report_logo_path():
     logo file is moved or missing.
 
     Search order:
-      1. backend/assets/  (highest priority – always present beside app.py)
+      1. backend/assets/  (highest priority â€“ always present beside app.py)
       2. assets/ at project root
       3. frontend/public/ and frontend/dist/
       4. PyInstaller _MEIPASS (packaged build)
@@ -1358,7 +1358,7 @@ def _dashboard_report_logo_path():
     exe_dir = os.path.dirname(os.path.abspath(_sys.executable)) if getattr(_sys, "frozen", False) else ""
 
     candidates = [
-        # 1. backend/assets/ — present after build and during dev
+        # 1. backend/assets/ â€” present after build and during dev
         os.path.join(backend_dir, "assets", "rapha_logo.png"),
         os.path.join(backend_dir, "assets", "rapha_logo.jpg"),
         # 2. Project root assets/
@@ -1402,7 +1402,7 @@ def _dashboard_report_logo_path():
         if candidate and os.path.exists(candidate) and os.path.getsize(candidate) > 0:
             return candidate
 
-    # No logo found — write a log entry so the operator knows
+    # No logo found â€” write a log entry so the operator knows
     try:
         log_dir = os.path.join(os.environ.get("APPDATA", ""), "HospAI", "logs")
         os.makedirs(log_dir, exist_ok=True)
@@ -1539,7 +1539,7 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
             return ""
         text = str(text)
         if pdf.font_name in ["Helvetica", "Times-Roman", "Courier", "Times"]:
-            text = text.replace("₹", "Rs. ")
+            text = text.replace("â‚¹", "Rs. ")
             return text.encode("latin-1", errors="replace").decode("latin-1")
         return text
 
@@ -1578,7 +1578,7 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
             pdf.ln(row_h)
         pdf.ln(3)
 
-    # Page 1 Header Block — proper 3-column layout:
+    # Page 1 Header Block â€” proper 3-column layout:
     # Left col:  Logo (x=15, y=14, w=22mm)
     # Center col: Hospital details (x=42, y=14)
     # Right col:  Report title (x=115, y=16, right-aligned)
@@ -1625,7 +1625,7 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
     pdf.cell(80, 5, clean_txt(f"Print Date: {format_print_date(now)}"), ln=True, align="R")
     pdf.set_text_color(0, 0, 0)
 
-    # Separator line — drawn at y=42mm, safely below all header content
+    # Separator line â€” drawn at y=42mm, safely below all header content
     pdf.set_draw_color(13, 148, 169)
     pdf.set_line_width(0.6)
     pdf.line(15, SEP_Y, 195, SEP_Y)
@@ -2374,13 +2374,6 @@ def op_doctor_schedules_list():
 @require_permissions("patients.write")
 def op_doctor_schedules_create():
     payload = request.get_json(force=True)
-<<<<<<< HEAD
-    validation_error = validate_required_fields(
-        payload, ["doctor_name", "schedule_date", "start_time", "end_time"]
-    )
-    if validation_error:
-        return validation_error
-=======
     # Only doctor_name is required; date and time are optional (permanent roster)
     validation_error = validate_required_fields(payload, ["doctor_name"])
     if validation_error:
@@ -2392,7 +2385,6 @@ def op_doctor_schedules_create():
         payload["start_time"] = "09:00"
     if not payload.get("end_time"):
         payload["end_time"] = "13:00"
->>>>>>> origin/main
     try:
         schedule_id = create_doctor_schedule(payload)
     except ValueError as exc:
@@ -2406,13 +2398,11 @@ def op_doctor_schedules_create():
     return jsonify({"schedule_id": schedule_id})
 
 
-<<<<<<< HEAD
-=======
 @app.get("/api/op/doctors")
 @require_permissions("patients.read")
 def op_doctors_list():
     """Return all distinct doctors saved in doctor_schedules with their
-    department and fee info, regardless of date. Used to populate department→doctor
+    department and fee info, regardless of date. Used to populate departmentâ†’doctor
     dropdowns without any date-based filtering."""
     department = request.args.get("department") or None
     rows = list_doctor_schedules(department=department)
@@ -2432,7 +2422,6 @@ def op_doctors_list():
     return jsonify({"doctors": list(seen.values())})
 
 
->>>>>>> origin/main
 @app.put("/api/op/doctor-schedules/<int:schedule_id>")
 @require_permissions("patients.write")
 def op_doctor_schedules_update(schedule_id):

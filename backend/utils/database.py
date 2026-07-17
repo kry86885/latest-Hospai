@@ -1175,15 +1175,9 @@ def ensure_hospai_module_tables(conn):
             id {id_column},
             doctor_name TEXT NOT NULL,
             department TEXT,
-<<<<<<< HEAD
-            schedule_date DATE NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT NOT NULL,
-=======
             schedule_date DATE,
             start_time TEXT,
             end_time TEXT,
->>>>>>> origin/main
             slot_capacity INTEGER DEFAULT 12,
             consultation_fee REAL DEFAULT 0,
             review_fee REAL DEFAULT 0,
@@ -1200,8 +1194,6 @@ def ensure_hospai_module_tables(conn):
     if "review_fee" not in doctor_schedule_columns:
         cursor.execute("ALTER TABLE doctor_schedules ADD COLUMN review_fee REAL DEFAULT 0")
 
-<<<<<<< HEAD
-=======
     # Migration: make schedule_date, start_time, end_time nullable.
     # We query information_schema to check if columns are NOT NULL, and ALTER them accordingly.
     try:
@@ -1222,7 +1214,6 @@ def ensure_hospai_module_tables(conn):
     except Exception:
         pass  # If migration fails, ignore safely
 
->>>>>>> origin/main
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS patient_consents (
@@ -1349,6 +1340,19 @@ def ensure_hospai_module_tables(conn):
         )
         """
     )
+
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS doctor_payout_payments (
+            id {id_column},
+            payout_id INTEGER NOT NULL REFERENCES doctor_payouts(id) ON DELETE CASCADE,
+            amount REAL NOT NULL,
+            paid_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_doctor_payout_payments_payout ON doctor_payout_payments(payout_id)")
 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_encounters_patient ON encounters(patient_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_invoice_patient ON invoices(patient_id)")
@@ -2601,20 +2605,11 @@ def _expand_schedule_dates(raw_schedule_date):
 def create_doctor_schedule(data):
     with get_connection() as conn:
         cursor = conn.cursor()
-<<<<<<< HEAD
-        schedule_dates = _expand_schedule_dates(data.get("schedule_date"))
-=======
->>>>>>> origin/main
         slot_capacity = int(data.get("slot_capacity") or 12)
         consultation_fee = _coerce_float(data.get("consultation_fee"))
         review_fee = _coerce_float(data.get("review_fee"))
         status = data.get("status", "available")
         notes = data.get("notes")
-<<<<<<< HEAD
-        new_start = data["start_time"]
-        new_end = data["end_time"]
-        doctor_name = data["doctor_name"]
-=======
         doctor_name = data["doctor_name"]
         new_start = data.get("start_time") or "09:00"
         new_end = data.get("end_time") or "13:00"
@@ -2646,7 +2641,6 @@ def create_doctor_schedule(data):
 
         # --- Date-specific schedule (original path) ---
         schedule_dates = _expand_schedule_dates(raw_date)
->>>>>>> origin/main
         created_ids = []
         for schedule_date in schedule_dates:
             date_str = schedule_date.isoformat()
@@ -3433,6 +3427,32 @@ def create_doctor_payout(data):
             ),
         )
         payout_id = cursor.lastrowid
+        
+        # Insert initial payment if paid_amount > 0
+        if paid_amount > 0:
+            cursor.execute(
+                """
+                INSERT INTO doctor_payout_payments (payout_id, amount, paid_date, notes)
+                VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP), ?)
+                """,
+                (payout_id, paid_amount, data.get("paid_date"), data.get("notes"))
+            )
+            # Create General Ledger Entry
+            cursor.execute(
+                """
+                INSERT INTO accounts_ledger (
+                    entry_date, entry_type, category, reference_no, counterparty_name, amount, notes
+                ) VALUES (COALESCE(?, CURRENT_DATE), 'expense', 'Doctor Payout', ?, ?, ?, ?)
+                """,
+                (
+                    data.get("paid_date"),
+                    f"PAYOUT-{payout_id}",
+                    data["doctor_name"],
+                    paid_amount,
+                    f"Initial payout for {data['payout_month']}. {data.get('notes') or ''}"
+                )
+            )
+            
         conn.commit()
         return payout_id
 
@@ -3449,7 +3469,20 @@ def list_doctor_payouts(doctor_name=None):
             cursor.execute(
                 "SELECT * FROM doctor_payouts ORDER BY payout_month DESC, id DESC"
             )
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        
+        # Fetch payment history for each payout
+        payouts = []
+        for row in rows:
+            payout_dict = dict(row)
+            cursor.execute(
+                "SELECT id, amount, paid_date, notes FROM doctor_payout_payments WHERE payout_id = ? ORDER BY paid_date DESC, id DESC",
+                (payout_dict["id"],)
+            )
+            p_rows = cursor.fetchall()
+            payout_dict["payments"] = [dict(r) for r in p_rows]
+            payouts.append(payout_dict)
+        return payouts
 
 
 def update_doctor_payout(payout_id, data):
@@ -3460,11 +3493,24 @@ def update_doctor_payout(payout_id, data):
         if not existing:
             return False
         total_amount = float(data.get("amount", existing["amount"] or 0))
-        paid_amount = float(data.get("paid_amount", existing["paid_amount"] or 0))
+        
+        # Handle custom payment parameter or compute delta automatically
+        if "amount_to_pay" in data:
+            payment_delta = float(data["amount_to_pay"])
+            paid_amount = float(existing["paid_amount"] or 0) + payment_delta
+        elif "paid_amount" in data:
+            new_paid_total = float(data["paid_amount"])
+            payment_delta = new_paid_total - float(existing["paid_amount"] or 0)
+            paid_amount = new_paid_total
+        else:
+            payment_delta = 0.0
+            paid_amount = float(existing["paid_amount"] or 0)
+            
         due_amount = max(total_amount - paid_amount, 0.0)
         status = data.get("status")
         if not status:
             status = "paid" if due_amount == 0 else ("partial" if paid_amount > 0 else "pending")
+            
         cursor.execute(
             """
             UPDATE doctor_payouts
@@ -3484,6 +3530,33 @@ def update_doctor_payout(payout_id, data):
                 payout_id,
             ),
         )
+        
+        # If there is a new payment delta, insert history record and General Ledger entry
+        if payment_delta > 0:
+            payment_date = data.get("paid_date")
+            cursor.execute(
+                """
+                INSERT INTO doctor_payout_payments (payout_id, amount, paid_date, notes)
+                VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP), ?)
+                """,
+                (payout_id, payment_delta, payment_date, data.get("notes"))
+            )
+            # Create General Ledger Entry
+            cursor.execute(
+                """
+                INSERT INTO accounts_ledger (
+                    entry_date, entry_type, category, reference_no, counterparty_name, amount, notes
+                ) VALUES (COALESCE(?, CURRENT_DATE), 'expense', 'Doctor Payout', ?, ?, ?, ?)
+                """,
+                (
+                    payment_date,
+                    f"PAYOUT-{payout_id}",
+                    data.get("doctor_name", existing["doctor_name"]),
+                    payment_delta,
+                    f"Incremental payout payment for {data.get('payout_month', existing['payout_month'])}. {data.get('notes') or ''}"
+                )
+            )
+            
         conn.commit()
         return cursor.rowcount > 0
 

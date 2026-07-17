@@ -204,12 +204,12 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
 
   useEffect(() => {
     void loadQueueFromPatients();
-  }, [visitDateFilter]);
+  }, [visitDateFilter, timerTick]);
   const departments = useMemo(() => departmentOptions, [departmentOptions]);
   const doctors = useMemo(() => doctorOptions, [doctorOptions]);
 
   useEffect(() => {
-    const id = setInterval(() => setTimerTick((t) => t + 1), 30000);
+    const id = setInterval(() => setTimerTick((t) => t + 1), 3000);
     return () => clearInterval(id);
   }, []);
 

@@ -6081,32 +6081,6 @@ main {
 
 /* Uploaded HospAI full logo display: sidebar/auth only; keeps app behavior unchanged. */
 .sidebar .brand {
-<<<<<<< HEAD
-  align-items: center;
-}
-.sidebar .brand .brand-logo-img {
-  width: 100% !important;
-  height: auto !important;
-  max-width: 100%;
-  max-height: 140px;
-  object-fit: contain;
-  display: block;
-  padding: 8px 12px;
-
-  width: 220px !important;
-  height: auto !important;
-  max-height: 75px !important;
-  max-width: 100%;
-  object-fit: contain !important;
-}
-.sidebar .brand .brand-title {
-  display: none;
-}
-.auth-card .brand .brand-logo-img {
-  width: 82px;
-  height: 70px;
-  object-fit: contain;
-=======
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -6178,7 +6152,6 @@ main {
 .auth-card .brand .brand-title,
 .auth-card .brand .brand-subtitle {
   display: none !important;
->>>>>>> origin/main
 }
 
 /* Increase header vertical rhythm so larger logo fits comfortably */

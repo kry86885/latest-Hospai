@@ -275,7 +275,7 @@ export default function DashboardPage({
     if (!onRefreshDashboard) return;
     const intervalId = window.setInterval(() => {
       onRefreshDashboard();
-    }, 30000);
+    }, 3000);
     return () => window.clearInterval(intervalId);
   }, [onRefreshDashboard]);
 
