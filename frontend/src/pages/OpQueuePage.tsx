@@ -24,7 +24,7 @@ type QueuePatient = {
   visitType: string;
   arrivedAt: string;
   arrivedAtRaw?: string;
-  status: "In Queue" | "In Consultation" | "Completed" | "Yet to Come";
+  status: "In Queue" | "In Consultation" | "Completed";
   mobile: string;
   appointmentId?: number;
   department?: string;
@@ -59,14 +59,9 @@ const mapAppointmentStatus = (status?: string, appointmentDate?: string): QueueP
   if (normalizedStatus === "in_consultation") return "In Consultation";
   if (normalizedStatus === "checked_in") return "In Queue";
   if (normalizedStatus === "scheduled") {
-    const selectedDate = normalizeDateOnly(appointmentDate);
-    const currentDate = new Date().toISOString().slice(0, 10);
-    if (!selectedDate) return "Yet to Come";
-    if (selectedDate < currentDate) return "Yet to Come";
-    if (selectedDate === currentDate) return "Yet to Come";
-    return "Yet to Come";
+    return "In Queue";
   }
-  return "Yet to Come";
+  return "In Queue";
 };
 
 const safeText = (value: unknown) => String(value ?? "-")
@@ -87,6 +82,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
   const [queue, setQueue] = useState<QueuePatient[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
   const [doctorOptions, setDoctorOptions] = useState<string[]>([]);
+  const [doctorDeptMap, setDoctorDeptMap] = useState<Record<string, string>>({});
   const [opSummary, setOpSummary] = useState<OpSummary | null>(null);
   const [selectedToken, setSelectedToken] = useState("");
   const [search, setSearch] = useState("");
@@ -136,7 +132,7 @@ export default function OpQueuePage({ setNotice, onOpenPatient, onNavigate }: Pr
           priority: String(item.priority || "Normal") as QueuePatient["priority"],
         }));
       const mapped = (data.appointments || [])
-        .filter((appointment) => !["completed", "cancelled"].includes(String(appointment.status || "").toLowerCase()))
+        .filter((appointment) => !["cancelled"].includes(String(appointment.status || "").toLowerCase()))
         .filter((appointment) => !readmitEntries.some((entry) => entry.uhid === appointment.patient_id))
         .map((appointment, index) => {
           const age = String(appointment.age ?? "").trim();
@@ -190,9 +186,18 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
       });
       setDepartmentOptions(Array.from(departmentNames).sort((a, b) => a.localeCompare(b)));
       setDoctorOptions(Array.from(doctorNames).sort((a, b) => a.localeCompare(b)));
+      // Build doctor→department map from schedules for auto-fill
+      const deptMap: Record<string, string> = {};
+      (scheduleData.schedules || []).forEach((schedule) => {
+        const dName = String(schedule.doctor_name || "").trim();
+        const dept = String(schedule.department || "").trim();
+        if (dName && dept) deptMap[dName] = dept;
+      });
+      setDoctorDeptMap(deptMap);
       setQueue(nextQueue as QueuePatient[]);
       setOpSummary(summaryData || null);
-      setSelectedToken((current) => nextQueue.some((patient) => patient.token === current && patient.status !== "Completed") ? current : (nextQueue.find((patient) => patient.status === "In Queue") || nextQueue.find((patient) => patient.status !== "Completed") || nextQueue[0])?.token || "");
+      // Keep current token selection if still in queue; default to first In Queue patient
+      setSelectedToken((current) => nextQueue.some((patient) => patient.token === current) ? current : (nextQueue.find((patient) => patient.status === "In Queue") || nextQueue[0])?.token || "");
     } catch (error) {
       setQueue([]);
       setDepartmentOptions([]);
@@ -269,7 +274,6 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
     inQueue: filteredQueue.filter((patient) => patient.status === "In Queue"),
     inConsultation: filteredQueue.filter((patient) => patient.status === "In Consultation"),
     completed: filteredQueue.filter((patient) => patient.status === "Completed"),
-    yetToCome: filteredQueue.filter((patient) => patient.status === "Yet to Come"),
   }), [filteredQueue]);
 
   useEffect(() => {
@@ -282,23 +286,22 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
 
   const counts = useMemo(() => ({
     total: queue.length,
-    completed: queue.filter((patient) => patient.status === "Completed").length,
+    // Prefer backend-authoritative count (includes all completions, not just loaded page)
+    completed: (opSummary as any)?.completed_count ?? queue.filter((patient) => patient.status === "Completed").length,
     inConsultation: queue.filter((patient) => patient.status === "In Consultation").length,
     inQueue: queue.filter((patient) => patient.status === "In Queue").length,
-    yet: queue.filter((patient) => patient.status === "Yet to Come").length,
-  }), [queue]);
+  }), [queue, opSummary]);
 
 
   const getStatusBadgeClass = (status?: QueuePatient["status"]) => {
     if (status === "Completed") return "queue-badge completed";
     if (status === "In Consultation") return "queue-badge consultation";
-    if (status === "Yet to Come") return "queue-badge hold";
     return "queue-badge";
   };
 
   const callNext = () => {
     const waiting = queue.filter((p) => p.status === "In Queue");
-    const candidate = pickNextPatient(waiting) || queue.find((patient) => patient.status === "Yet to Come");
+    const candidate = pickNextPatient(waiting);
     if (!candidate) {
       setNotice({ type: "warning", message: "No waiting patient is currently in the OP queue." });
       return;
@@ -340,7 +343,7 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
         });
         saveReadmitQueueState(next);
         if (status === "Completed") {
-          const nextWaiting = next.find((patient) => patient.status === "In Queue") || next.find((patient) => patient.status === "Yet to Come");
+          const nextWaiting = next.find((patient) => patient.status === "In Queue");
           setSelectedToken(nextWaiting?.token || "");
         }
         return next;
@@ -437,7 +440,7 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
       return;
     }
     if (action === "hold") {
-      await setPatientStatus(patient, "Yet to Come");
+      await setPatientStatus(patient, "In Queue");
       return;
     }
     if (action === "transfer") {
@@ -492,6 +495,8 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
   const [transferTargetDoctor, setTransferTargetDoctor] = useState("");
   const openTransferModal = () => {
     if (!selectedToken) return setNotice({ type: "warning", message: "Select a patient to transfer." });
+    // Pre-fill with current doctor if available
+    setTransferTargetDoctor(selectedPatient?.doctor || "");
     setTransferModalOpen(true);
   };
   const confirmTransfer = async () => {
@@ -499,20 +504,25 @@ status: mapAppointmentStatus(appointment.status, appointment.appointment_date),
       setNotice({ type: "warning", message: "Select target doctor." });
       return;
     }
+    const autoDept = doctorDeptMap[transferTargetDoctor] || selectedPatient.department || "";
     try {
       if (selectedPatient.appointmentId) {
         await apiFetch(`/api/appointments/${selectedPatient.appointmentId}`, {
           method: "PUT",
-          body: JSON.stringify({ doctor_name: transferTargetDoctor }),
+          body: JSON.stringify({ doctor_name: transferTargetDoctor, department: autoDept }),
         });
       }
       setQueue((current) => {
-        const next = current.map((p) => p.token === selectedToken ? { ...p, doctor: transferTargetDoctor } : p);
+        const next = current.map((p) =>
+          p.token === selectedToken
+            ? { ...p, doctor: transferTargetDoctor, department: autoDept || p.department }
+            : p
+        );
         saveReadmitQueueState(next);
         return next;
       });
       setTransferModalOpen(false);
-      setNotice({ type: "success", message: `${selectedToken} transferred to ${transferTargetDoctor}.` });
+      setNotice({ type: "success", message: `${selectedToken} transferred to Dr. ${transferTargetDoctor}${autoDept ? ` (${autoDept})` : ""}.` });
     } catch {
       setNotice({ type: "error", message: `Unable to transfer ${selectedToken} to ${transferTargetDoctor}.` });
     }
@@ -711,7 +721,7 @@ void loadQueueFromPatients();
               <option value="In Queue">In Queue</option>
               <option value="In Consultation">In Consultation</option>
               <option value="Completed">Completed</option>
-              <option value="Yet to Come">Yet to Come</option>
+
             </Select>
           </label>
           <label className="op-search-label">
@@ -755,13 +765,7 @@ Clear
           </div>
           <div className="kpi-value">{counts.completed}</div>
         </div>
-        <div className="kpi-card kpi-upcoming clickable" onClick={() => setStatusFilter("Yet to Come")}>
-          <div className="kpi-card-top">
-            <span className="kpi-icon icon-upcoming">📅</span>
-            <span className="kpi-label">Yet to Come</span>
-          </div>
-          <div className="kpi-value">{counts.yet}</div>
-        </div>
+
         <div className="kpi-card kpi-doctors">
           <div className="kpi-card-top">
             <span className="kpi-icon icon-doctors">🩺</span>
@@ -853,33 +857,7 @@ Clear
                   </div>
                 ))}
               </div>
-              <div className="queue-board-column">
-                <div className="queue-board-header"><span>Yet to Come</span><strong>{queueByStatus.yetToCome.length}</strong></div>
-                {queueByStatus.yetToCome.map((patient) => (
-                  <div key={patient.token} role="button" tabIndex={0} className={`queue-board-item ${patient.token === selectedToken ? "selected" : ""}`} onClick={() => setSelectedToken(patient.token)}>
-                    <div className="queue-card-header">
-                      <div className="queue-token">
-                        <strong>{patient.token}</strong>
-                        <span className="visit-type-badge">{patient.visitType}</span>
-                      </div>
-                      <div className="queue-wait">Arrives: <strong>{patient.arrivedAt}</strong></div>
-                    </div>
-                    <div className="queue-board-item-name">{patient.name}</div>
-                    <div className="queue-board-item-details">
-                      <div><small>UHID</small><b>{patient.uhid || "-"}</b></div>
-                      <div><small>Age / Gender</small><b>{patient.ageGender || "- / -"}</b></div>
-                      <div><small>Doctor</small><b>{patient.doctor || "-"}</b></div>
-                      <div><small>Department</small><b>{patient.department || "-"}</b></div>
-                      <div><small>Priority</small><b>{patient.priority || "Normal"}</b></div>
-                    </div>
-                    <div className="queue-card-actions">
-                      <button type="button" className="action-load" onClick={(e) => { e.stopPropagation(); openPatientDetails(patient); }}>Load</button>
-                      <button type="button" className="action-cancel" onClick={(e) => { e.stopPropagation(); handlePatientAction(patient, "remove"); }}>Cancel</button>
-                      <button type="button" className="action-print" onClick={(e) => { e.stopPropagation(); printPatientSlip(patient); }}>Print</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+
               <div className="queue-board-column">
                 <div className="queue-board-header"><span>Completed</span><strong>{queueByStatus.completed.length}</strong></div>
                 {queueByStatus.completed.map((patient) => (
@@ -1025,11 +1003,19 @@ Clear
       <Modal open={transferModalOpen} onClose={() => setTransferModalOpen(false)} title="Transfer Patient" description="Select a doctor to transfer this patient to.">
         <div style={{ display: "grid", gap: 12 }}>
           <label style={{ display: "grid" }}><span style={{ fontWeight: 800 }}>Doctor</span>
-            <Select value={transferTargetDoctor} onChange={(e) => setTransferTargetDoctor(e.target.value)}>
+            <Select value={transferTargetDoctor} onChange={(e) => {
+              const doc = e.target.value;
+              setTransferTargetDoctor(doc);
+            }}>
               <option value="">Select doctor</option>
               {doctors.map((d) => <option key={d} value={d}>{d}</option>)}
             </Select>
           </label>
+          {transferTargetDoctor && doctorDeptMap[transferTargetDoctor] && (
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
+              🏥 Department: <strong>{doctorDeptMap[transferTargetDoctor]}</strong>
+            </p>
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button type="button" onClick={() => setTransferModalOpen(false)}>Cancel</Button>
             <Button type="button" className="purple-action" onClick={confirmTransfer}>Confirm Transfer</Button>

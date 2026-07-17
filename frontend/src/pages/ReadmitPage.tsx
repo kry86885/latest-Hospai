@@ -35,7 +35,7 @@ type DoctorSchedule = {
 type OcrResultMap = Record<string, { text?: string; file?: File }>;
 
 const IMAGE_NAME_PATTERN = /\.(png|jpe?g|webp|bmp|gif|tiff?|heic|heif)$/i;
-const ACTIVE_READMIT_STATUSES = new Set(["In Queue", "In Consultation", "Yet to Come"]);
+const ACTIVE_READMIT_STATUSES = new Set(["In Queue", "In Consultation"]);
 const FOLLOW_UP_PAYMENT_MODES = ["Cash", "UPI", "Credit Card", "Debit Card", "Net Banking", "Cheque", "Wallet", "Insurance"];
 
 function getStoredReadmitQueue() {

@@ -570,6 +570,10 @@ def ensure_patient_columns(conn):
         "emergency_contact": "TEXT",
         "emergency_relation": "TEXT",
         "family_mobile": "TEXT",
+        "marital_status": "TEXT",
+        "nationality": "TEXT",
+        "email": "TEXT",
+        "emergency_mobile": "TEXT",
     }
     for column, col_type in expected.items():
         if column not in existing:
@@ -1564,8 +1568,8 @@ def add_patient(data, hospital_id=None):
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO patients (hospital_id, patient_id, name, middle_name, last_name, dob, age, weight, height, gender, pregnant, allergies, symptoms, phone, address, emergency_contact, emergency_relation, family_mobile)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO patients (hospital_id, patient_id, name, middle_name, last_name, dob, age, weight, height, gender, pregnant, allergies, symptoms, phone, address, emergency_contact, emergency_relation, family_mobile, marital_status, nationality, email, emergency_mobile)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 scoped_hospital_id,
@@ -1586,6 +1590,10 @@ def add_patient(data, hospital_id=None):
                 data.get("emergency_contact", ""),
                 data.get("emergency_relation", ""),
                 data.get("family_mobile", ""),
+                data.get("marital_status"),
+                data.get("nationality"),
+                data.get("email"),
+                data.get("emergency_mobile"),
             ),
         )
         conn.commit()
@@ -1722,7 +1730,8 @@ def update_patient(patient_id, data):
         cursor.execute(
             """
             UPDATE patients SET name=?, middle_name=?, last_name=?, dob=?, age=?, weight=?, height=?,
-            gender=?, pregnant=?, allergies=?, symptoms=?, phone=?, address=?, emergency_contact=?, emergency_relation=?, family_mobile=?, updated_at=CURRENT_TIMESTAMP
+            gender=?, pregnant=?, allergies=?, symptoms=?, phone=?, address=?, emergency_contact=?, emergency_relation=?, family_mobile=?,
+            marital_status=?, nationality=?, email=?, emergency_mobile=?, updated_at=CURRENT_TIMESTAMP
             WHERE patient_id=?
         """,
             (
@@ -1742,6 +1751,10 @@ def update_patient(patient_id, data):
                 data.get("emergency_contact", ""),
                 data.get("emergency_relation", ""),
                 data.get("family_mobile", ""),
+                data.get("marital_status"),
+                data.get("nationality"),
+                data.get("email"),
+                data.get("emergency_mobile"),
                 patient_id,
             ),
         )
@@ -2813,6 +2826,11 @@ def get_op_summary(target_date=None):
         )
         active_queue = cursor.fetchone()["value"]
         cursor.execute(
+            "SELECT COUNT(*) AS value FROM appointments WHERE visit_type = 'OP' AND LOWER(COALESCE(status, '')) IN ('completed', 'finished', 'consulted', 'done') AND DATE(appointment_date) = DATE(?)",
+            (day,),
+        )
+        completed_count = cursor.fetchone()["value"]
+        cursor.execute(
             "SELECT COUNT(*) AS value FROM appointments WHERE visit_type = 'OP' AND no_show_marked = 1 AND DATE(appointment_date) = DATE(?)",
             (day,),
         )
@@ -2832,6 +2850,7 @@ def get_op_summary(target_date=None):
         "total_appointments": total_appointments,
         "follow_ups": follow_ups,
         "active_queue": active_queue,
+        "completed_count": completed_count,
         "no_shows": no_shows,
         "reminders_sent": reminders_sent,
         "available_doctors": available_doctors,
@@ -5778,26 +5797,53 @@ def get_hospital_dashboard_summary(selected_date=None):
             except Exception:
                 pass
 
-        # 1. Encounters Daily & Monthly counts
-        encounter_query_params = selected_date_params * 3
-        if target_month_val:
-            encounter_query_params = encounter_query_params + (target_month_val,)
-            
+        # 1. Encounters Daily & Monthly counts from actual admissions and appointments tables
+        # Daily IP
         cursor.execute(
-            f"""
-            SELECT
-                SUM(CASE WHEN encounter_type='IP' AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_ip,
-                SUM(CASE WHEN encounter_type='OP' AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_op,
-                SUM(CASE WHEN encounter_type='IP' THEN 1 ELSE 0 END) AS monthly_ip,
-                SUM(CASE WHEN encounter_type='OP' THEN 1 ELSE 0 END) AS monthly_op,
-                SUM(CASE WHEN is_accident=1 AND {selected_date_clause} THEN 1 ELSE 0 END) AS daily_accident,
-                SUM(CASE WHEN is_accident=1 THEN 1 ELSE 0 END) AS monthly_accident
-            FROM encounters
-            WHERE {encounter_date_clause}
-            """,
-            encounter_query_params,
+            f"SELECT COUNT(*) FROM admissions WHERE {selected_date_clause.replace('arrival_at', 'admission_date')}",
+            selected_date_params,
         )
-        encounter_summary = dict(cursor.fetchone() or {})
+        daily_ip = cursor.fetchone()[0]
+
+        # Daily OP
+        cursor.execute(
+            f"SELECT COUNT(*) FROM appointments WHERE visit_type='OP' AND {selected_date_clause.replace('arrival_at', 'appointment_date')}",
+            selected_date_params,
+        )
+        daily_op = cursor.fetchone()[0]
+
+        # Monthly IP
+        if target_month_val:
+            cursor.execute(
+                "SELECT COUNT(*) FROM admissions WHERE to_char(admission_date, 'YYYY-MM') = ?",
+                (target_month_val,),
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM admissions WHERE to_char(admission_date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')",
+            )
+        monthly_ip = cursor.fetchone()[0]
+
+        # Monthly OP
+        if target_month_val:
+            cursor.execute(
+                "SELECT COUNT(*) FROM appointments WHERE visit_type='OP' AND to_char(appointment_date, 'YYYY-MM') = ?",
+                (target_month_val,),
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM appointments WHERE visit_type='OP' AND to_char(appointment_date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')",
+            )
+        monthly_op = cursor.fetchone()[0]
+
+        encounter_summary = {
+            "daily_ip": daily_ip,
+            "daily_op": daily_op,
+            "monthly_ip": monthly_ip,
+            "monthly_op": monthly_op,
+            "daily_accident": 0,
+            "monthly_accident": 0,
+        }
 
         # 2. Revenue Summary
         selected_payment_date_clause = "DATE(created_at)=CURRENT_DATE"

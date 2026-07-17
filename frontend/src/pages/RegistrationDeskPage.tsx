@@ -1159,11 +1159,6 @@ const activeDepartments = (data.departments || []).filter((department) => {
 
   return (
     <section className="module-page">
-      <div className="module-panel-head">
-        <h3>{mode === "appointment-in" ? "Appointment In Desk" : "Appointment Out Desk"}</h3>
-      </div>
-
-
 
       {mode === "appointment-in" ? (
         <>

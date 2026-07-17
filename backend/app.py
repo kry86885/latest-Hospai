@@ -2538,14 +2538,14 @@ def _validate_patient_registration_payload(payload):
     if emergency_mobile_error:
         errors["emergency_mobile"] = emergency_mobile_error
 
-    return errors, phone, family_mobile
+    return errors, phone, family_mobile, _emergency_mobile
 
 @app.post("/api/patients")
 @require_permissions("patients.write")
 def patients_create():
     payload = request.get_json(force=True)
     hospital_id = current_hospital_id()
-    validation_errors, normalized_phone, normalized_family_mobile = _validate_patient_registration_payload(payload)
+    validation_errors, normalized_phone, normalized_family_mobile, normalized_emergency_mobile = _validate_patient_registration_payload(payload)
     if validation_errors:
         return jsonify({"error": "Patient registration validation failed.", "fields": validation_errors}), 400
 
@@ -2599,6 +2599,10 @@ def patients_create():
         "emergency_contact": str(payload.get("emergency_contact") or "").strip() if payload.get("emergency_contact") else None,
         "emergency_relation": str(payload.get("emergency_relation") or "").strip() if payload.get("emergency_relation") else None,
         "family_mobile": normalized_family_mobile if normalized_family_mobile else None,
+        "marital_status": str(payload.get("marital_status") or "").strip() or None,
+        "nationality": str(payload.get("nationality") or "").strip() or None,
+        "email": str(payload.get("email") or "").strip() or None,
+        "emergency_mobile": normalized_emergency_mobile if normalized_emergency_mobile else None,
     }
     add_patient(data, hospital_id=hospital_id)
     admission_id = add_admission(patient_id, "Initial registration", hospital_id=hospital_id)
@@ -2640,6 +2644,10 @@ def patients_update(patient_id):
         "emergency_contact": payload.get("emergency_contact", patient.get("emergency_contact") if hasattr(patient, "get") else None),
         "emergency_relation": payload.get("emergency_relation", patient.get("emergency_relation") if hasattr(patient, "get") else None),
         "family_mobile": _clean_digits(payload.get("family_mobile")) if payload.get("family_mobile") is not None else (patient.get("family_mobile") if hasattr(patient, "get") else None),
+        "marital_status": str(payload.get("marital_status") or "").strip() or (patient.get("marital_status") if hasattr(patient, "get") else None),
+        "nationality": str(payload.get("nationality") or "").strip() or (patient.get("nationality") if hasattr(patient, "get") else None),
+        "email": str(payload.get("email") or "").strip() or (patient.get("email") if hasattr(patient, "get") else None),
+        "emergency_mobile": _clean_digits(payload.get("emergency_mobile")) if payload.get("emergency_mobile") is not None else (patient.get("emergency_mobile") if hasattr(patient, "get") else None),
     }
     update_patient(patient_id, data)
     log_audit_event("update", "patients", patient_id, {"fields": list(data.keys())})

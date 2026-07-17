@@ -295,9 +295,9 @@ export default function OpPage({ setNotice, canEdit }: Props) {
         body: JSON.stringify({
           doctor_name: scheduleForm.doctor_name.trim(),
           department: scheduleForm.department.trim() || undefined,
-          schedule_date: "2000-01-01",
-          start_time: "00:00",
-          end_time: "23:59",
+          // Do NOT send a fixed schedule_date – the backend treats date-less
+          // entries as permanent roster records and skips the overlap check.
+          // Sending a dummy date like "2000-01-01" caused duplicate-name errors.
           consultation_fee: Number(scheduleForm.consultation_fee) || undefined,
           review_fee: Number(scheduleForm.review_fee) || undefined,
           status: scheduleForm.status,

@@ -59,7 +59,6 @@ describe("RegistrationDeskPage", () => {
       await flush();
     });
 
-    expect(container.textContent).toContain("Appointment In Desk");
     expect(container.textContent).toContain("Patient Search & Appointment Intake");
     expect(container.textContent).toContain("Schedule Appointment");
     expect(container.textContent).toContain("Token #7");
@@ -154,7 +153,6 @@ test("shows an empty-departments fallback when no departments are returned", asy
       await flush();
     });
 
-    expect(container.textContent).toContain("Appointment Out Desk");
     expect(container.textContent).toContain("Token #8");
     expect(container.textContent).toContain("Complete");
 

@@ -79,7 +79,7 @@ expect(container.textContent).toContain("Clear");
     container.remove();
   });
 
-  test("shows same-day future appointments as Yet to Come", async () => {
+  test("shows same-day future appointments as In Queue", async () => {
     const futureAppointmentDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     global.fetch = vi.fn((url: string) => {
       const requestUrl = String(url);
@@ -133,7 +133,7 @@ expect(container.textContent).toContain("Clear");
       await flush();
     });
 
-    expect(container.textContent).toContain("Yet to Come");
+    expect(container.textContent).toContain("In Queue");
 
     act(() => {
       root.unmount();
