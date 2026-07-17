@@ -6102,20 +6102,19 @@ main {
   padding: 4px !important;
 }
 .sidebar .brand {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+  display: block !important;
   width: 100% !important;
   padding: 0.75rem 0 !important;
   margin: 0 !important;
+  text-align: center !important;
 }
 .sidebar .brand .brand-logo-img,
 .sidebar .brand .brand-logo-fallback {
-  width: calc(100% + 1.2rem) !important;
-  margin: 0 -0.6rem !important;
-  max-width: 244px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  max-width: 220px !important;
   height: auto !important;
-  max-height: 95px !important;
+  max-height: 80px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   background: transparent !important;
@@ -6130,19 +6129,18 @@ main {
 }
 
 .auth-card .brand {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+  display: block !important;
   width: 100% !important;
   margin-bottom: 2.5rem !important;
   margin-top: 1rem !important;
+  text-align: center !important;
 }
 .auth-card .brand .brand-logo-img,
 .auth-card .brand .brand-logo-fallback {
   width: 100% !important;
-  max-width: 380px !important;
+  max-width: 340px !important;
   height: auto !important;
-  max-height: 140px !important;
+  max-height: 110px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   background: transparent !important;

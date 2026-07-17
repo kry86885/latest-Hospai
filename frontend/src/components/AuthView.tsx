@@ -13,12 +13,8 @@ export default function AuthView({ onLogin, initialHospitalCode }: Props) {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">
+        <div className="brand" style={{ display: "block", width: "100%", textAlign: "center" }}>
           <BrandLogo />
-          <div>
-            <p className="brand-title">HospAI</p>
-            <p className="brand-subtitle">AI-Driven Healthcare Optimization</p>
-          </div>
         </div>
         <h1>Welcome back</h1>
         <p className="muted">Sign in to manage patients, OCR documents, and admissions.</p>

@@ -883,13 +883,8 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-top">
-          <div className="brand">
+          <div className="brand" style={{ display: "block", width: "100%", textAlign: "center" }}>
             <BrandLogo />
-            <div>
-              <p className="brand-title">
-                Hosp<span className="brand-title-ai">AI</span>
-              </p>
-            </div>
           </div>
         </div>
         <div className="sidebar-scroll-region">
