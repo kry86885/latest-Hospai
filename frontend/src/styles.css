@@ -6085,23 +6085,6 @@ main {
 
 /* Uploaded HospAI full logo display: sidebar/auth only; keeps app behavior unchanged. */
 .sidebar .brand {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100% !important;
-  padding: 10px 0 !important;
-}
-.sidebar .brand .brand-logo-img {
-  width: 100% !important;
-  max-width: 220px !important;
-  height: auto !important;
-  max-height: 75px !important;
-  object-fit: contain !important;
-  display: block !important;
-  margin: 0 auto !important;
-  padding: 4px !important;
-}
-.sidebar .brand {
   display: block !important;
   width: calc(100% + 1.8rem) !important;
   margin: -1.05rem -0.9rem 0.5rem -0.9rem !important;
@@ -6109,6 +6092,7 @@ main {
   background: #ffffff !important;
   border-bottom: 1px solid rgba(24, 57, 83, 0.08);
   text-align: center !important;
+  box-sizing: border-box !important;
 }
 .sidebar .brand .brand-logo-img,
 .sidebar .brand .brand-logo-fallback {
