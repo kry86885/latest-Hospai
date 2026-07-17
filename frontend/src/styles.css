@@ -6096,11 +6096,11 @@ main {
 }
 .sidebar .brand .brand-logo-img,
 .sidebar .brand .brand-logo-fallback {
-  width: 90% !important;
+  width: 95% !important;
   margin: 0 auto !important;
-  max-width: 210px !important;
+  max-width: 228px !important;
   height: auto !important;
-  max-height: 85px !important;
+  max-height: 95px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   background: transparent !important;
@@ -6109,6 +6109,8 @@ main {
   border-radius: 0 !important;
   object-fit: contain !important;
   display: block !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
 }
 .sidebar .brand .brand-title {
   display: none !important;
@@ -6124,9 +6126,9 @@ main {
 .auth-card .brand .brand-logo-img,
 .auth-card .brand .brand-logo-fallback {
   width: 100% !important;
-  max-width: 340px !important;
+  max-width: 360px !important;
   height: auto !important;
-  max-height: 110px !important;
+  max-height: 120px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   background: transparent !important;
@@ -6136,6 +6138,8 @@ main {
   object-fit: contain !important;
   display: block !important;
   margin: 0 auto !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
 }
 .auth-card .brand .brand-title,
 .auth-card .brand .brand-subtitle {

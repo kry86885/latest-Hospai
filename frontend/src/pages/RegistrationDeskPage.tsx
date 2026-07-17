@@ -220,6 +220,7 @@ export default function RegistrationDeskPage({ mode, selectedPatient, setNotice 
   const [queueDate, setQueueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savingAppointment, setSavingAppointment] = useState(false);
   const [isRazorpayReady, setIsRazorpayReady] = useState(true);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [departmentInput, setDepartmentInput] = useState("");
@@ -273,19 +274,9 @@ const activeDepartments = (data.departments || []).filter((department) => {
     }
   };
 
-  const loadDoctorSuggestions = async (forDate?: string) => {
+  const loadDoctorSuggestions = async () => {
     try {
-// When a specific appointment date is chosen, only show doctors with an
-      // 'available' schedule on that exact date. When no date is provided (e.g.
-      // on initial mount before the user has picked a date), fetch all schedules
-      // so the datalist is populated from the start (identical to original behavior).
       let url = "/api/op/doctor-schedules";
-      if (forDate) {
-        const params = new URLSearchParams();
-        params.set("status", "available");
-        params.set("date", forDate);
-        url = `/api/op/doctor-schedules?${params.toString()}`;
-      }
       const scheduleData = await apiFetch<{ schedules?: { doctor_name?: string | null; department?: string | null; consultation_fee?: number | null; review_fee?: number | null; status?: string | null; start_time?: string | null; end_time?: string | null }[] }>(url);
       const names = new Set<string>();
       const feesByDoctor: Record<string, { department?: string; consultation_fee?: number | null; review_fee?: number | null }> = {};
@@ -337,26 +328,14 @@ const activeDepartments = (data.departments || []).filter((department) => {
     void loadRegistrationOps();
   }, [queueDate]);
 
-  // Re-fetch available doctors whenever the selected appointment date changes
-  // so the datalist only shows doctors who have a status='available' schedule
-  // on that specific date. The date portion is extracted from the datetime-local
-  // value (e.g. "2026-07-20T09:00" → "2026-07-20").
-  useEffect(() => {
-    const dateOnly = appointmentForm.appointment_date
-      ? appointmentForm.appointment_date.slice(0, 10)
-      : "";
-    if (!dateOnly) return;
-    void loadDoctorSuggestions(dateOnly);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointmentForm.appointment_date]);
-
   const filteredDoctorSuggestions = useMemo(() => {
     if (!appointmentForm.department) return doctorSuggestions;
     return doctorSuggestions.filter((name) => {
       const info = doctorFeeMap[name];
-return info?.department === appointmentForm.department;
+      return info?.department === appointmentForm.department;
     });
   }, [appointmentForm.department, doctorFeeMap, doctorSuggestions]);
+
   const resolveAppointmentFee = (doctorName: string, appointmentKind: string) => {
     const selectedDoctor = doctorName.trim();
     const selectedDoctorFees = selectedDoctor ? doctorFeeMap[selectedDoctor] : undefined;
@@ -478,7 +457,7 @@ return info?.department === appointmentForm.department;
       patient_id: patient.patient_id || "",
       patient_name: fullName,
       patient_type: "existing",
-department: prev.department,
+      department: prev.department,
       doctor_name: prev.doctor_name,
       chief_complaint: prev.chief_complaint,
       bp: prev.bp,
@@ -572,10 +551,18 @@ department: prev.department,
       setNotice({ type: "warning", message: "Patient name and appointment date/time are required." });
       return;
     }
+    if (!appointmentForm.doctor_name.trim()) {
+      setNotice({ type: "warning", message: "Please select a doctor for the appointment." });
+      return;
+    }
+    if (!paymentConfirmed) {
+      setNotice({ type: "warning", message: "Please verify and confirm that the consultation fee has been paid by checking the 'Verify Fee Paid' checkbox." });
+      return;
+    }
     const doctorName = appointmentForm.doctor_name.trim();
     const consultationFee = resolveAppointmentFee(doctorName, appointmentForm.appointment_kind);
     if (consultationFee <= 0) {
-setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
+      setNotice({ type: "warning", message: "Consultation fee is mandatory and must be greater than zero." });
       return;
     }
     setSavingAppointment(true);
@@ -596,6 +583,7 @@ setNotice({ type: "warning", message: "Consultation fee is mandatory and must be
           operator_name: appointmentForm.operator_name.trim() || undefined,
         }),
       });
+      setPaymentConfirmed(false);
       setAppointmentForm((prev) => ({
         ...DEFAULT_APPOINTMENT_FORM,
         patient_id: selectedPatient?.patient_id || "",
@@ -771,11 +759,11 @@ setNotice({ type: "warning", message: "Consultation fee is mandatory and must be
       setConsentForm({
         ...DEFAULT_CONSENT_FORM,
         patient_id: selectedPatient?.patient_id || "",
-      patient_name: patientName,
-      signed_by: patientName,
-      relation_to_patient: "Self",
-      patient_signature: patientName,
-    });
+        patient_name: patientName,
+        signed_by: patientName,
+        relation_to_patient: "Self",
+        patient_signature: patientName,
+      });
       await loadRegistrationOps();
       setNotice({ type: "success", message: "Digital consent recorded." });
     } catch (error) {
@@ -1290,11 +1278,12 @@ setNotice({ type: "warning", message: "Consultation fee is mandatory and must be
                 <Select
                   value={appointmentForm.department}
                   onChange={(event) => {
-const value = event.target.value;
-                    const doctors = value ? filteredDoctorSuggestions.filter((name) => doctorFeeMap[name]?.department === value) : [];
+                    const value = event.target.value;
+                    const doctors = value
+                      ? doctorSuggestions.filter((name) => doctorFeeMap[name]?.department === value)
+                      : [];
                     setAppointmentForm((prev) => {
-                      const validDoctor = prev.doctor_name && doctors.includes(prev.doctor_name) ? prev.doctor_name : "";
-                      const selectedDoctor = validDoctor || (doctors.length === 1 ? doctors[0] : "");
+                      const selectedDoctor = doctors.length > 0 ? doctors[0] : "";
                       const schedule = selectedDoctor ? doctorFeeMap[selectedDoctor] : undefined;
                       return {
                         ...prev,
@@ -1311,7 +1300,7 @@ const value = event.target.value;
                     });
                   }}
                 >
-<option value="">{departments.length ? "Select department" : "No Departments Available"}</option>
+                  <option value="">{departments.length ? "Select department" : "No Departments Available"}</option>
                   {departments.map((department) => {
                     const name = (department.department_name || "").trim();
                     if (!name) return null;
@@ -1429,6 +1418,16 @@ list="registration-doctors"
                   onChange={(event) => setAppointmentForm((prev) => ({ ...prev, consultation_fee: event.target.value }))}
                   placeholder="Consultation amount"
                 />
+              </Label>
+              <Label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", marginTop: "24px" }}>
+                <input
+                  type="checkbox"
+                  id="verify-fee-paid-desk"
+                  checked={paymentConfirmed}
+                  onChange={(e) => setPaymentConfirmed(e.target.checked)}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                />
+                <span style={{ fontWeight: "600", cursor: "pointer" }}>Verify Fee Paid</span>
               </Label>
               <Label>
                 Payment Mode

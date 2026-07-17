@@ -174,11 +174,11 @@ export default function OpPage({ setNotice, canEdit }: Props) {
   const loadOpDesk = async (date = selectedDate, doctorName = selectedDoctor) => {
     setLoading(true);
     try {
-      const doctorQuery = doctorName ? `&doctor_name=${encodeURIComponent(doctorName)}` : "";
+      const doctorQuery = doctorName ? `doctor_name=${encodeURIComponent(doctorName)}` : "";
       const [summaryData, scheduleData, appointmentData] = await Promise.all([
         apiFetch<OpSummary>(`/api/op/summary?date=${date}`),
-        apiFetch<{ schedules?: DoctorSchedule[] }>(`/api/op/doctor-schedules?date=${date}${doctorQuery}`),
-        apiFetch<{ appointments?: Appointment[] }>(`/api/appointments?date=${date}&visit_type=OP${doctorQuery}`),
+        apiFetch<{ schedules?: DoctorSchedule[] }>(`/api/op/doctor-schedules?${doctorQuery}`),
+        apiFetch<{ appointments?: Appointment[] }>(`/api/appointments?date=${date}&visit_type=OP${doctorQuery ? "&" + doctorQuery : ""}`),
       ]);
       const nextSchedules = scheduleData.schedules || [];
       const nextAppointments = appointmentData.appointments || [];
@@ -282,8 +282,8 @@ export default function OpPage({ setNotice, canEdit }: Props) {
 
   const handleScheduleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !scheduleForm.start_time || !scheduleForm.end_time) {
-      setNotice({ type: "error", message: "Doctor, date, and time range are required." });
+    if (!scheduleForm.doctor_name.trim()) {
+      setNotice({ type: "error", message: "Doctor name is required." });
       return;
     }
     setSavingSchedule(true);
@@ -295,16 +295,16 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
         body: JSON.stringify({
           doctor_name: scheduleForm.doctor_name.trim(),
           department: scheduleForm.department.trim() || undefined,
-          schedule_date: scheduleForm.schedule_date,
-          start_time: scheduleForm.start_time,
-          end_time: scheduleForm.end_time,
+          schedule_date: "2000-01-01",
+          start_time: "00:00",
+          end_time: "23:59",
           consultation_fee: Number(scheduleForm.consultation_fee) || undefined,
           review_fee: Number(scheduleForm.review_fee) || undefined,
           status: scheduleForm.status,
           notes: scheduleForm.notes.trim() || undefined,
         }),
       });
-      setScheduleForm({ ...DEFAULT_SCHEDULE_FORM, schedule_date: selectedDate });
+      setScheduleForm({ ...DEFAULT_SCHEDULE_FORM, schedule_date: "" });
       setNotice({ type: "success", message: scheduleId ? "Doctor schedule updated." : "Doctor schedule added." });
       await loadOpDesk(selectedDate, selectedDoctor);
       await refreshDoctors();
@@ -641,9 +641,6 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
                 );
               })}
             </Select>
-            <Input type="date" value={scheduleForm.schedule_date} onChange={(event) => setScheduleForm((current) => ({ ...current, schedule_date: event.target.value }))} aria-label="Schedule date" disabled={!canEdit} />
-            <div className="op-time-field"><Input type="time" value={scheduleForm.start_time} onChange={(event) => setScheduleForm((current) => ({ ...current, start_time: event.target.value }))} aria-label="Start time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.start_time)}</span></div>
-            <div className="op-time-field"><Input type="time" value={scheduleForm.end_time} onChange={(event) => setScheduleForm((current) => ({ ...current, end_time: event.target.value }))} aria-label="End time" disabled={!canEdit} /><span>{getAmPmLabel(scheduleForm.end_time)}</span></div>
             <Input type="number" min={0} value={scheduleForm.consultation_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, consultation_fee: event.target.value }))} placeholder="Consultation fee" aria-label="Consultation fee" disabled={!canEdit} />
             <Input type="number" min={0} value={scheduleForm.review_fee} onChange={(event) => setScheduleForm((current) => ({ ...current, review_fee: event.target.value }))} placeholder="Review fee" aria-label="Review fee" disabled={!canEdit} />
             <Select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value }))} aria-label="Schedule status" disabled={!canEdit}>
@@ -668,7 +665,6 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
               <TableHead>
                 <TableCell>Doctor</TableCell>
                 <TableCell>Department</TableCell>
-                <TableCell>Time</TableCell>
                 <TableCell>Consult Fee</TableCell>
                 <TableCell>Review Fee</TableCell>
                 <TableCell>Status</TableCell>
@@ -678,7 +674,6 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
                 <TableRow key={schedule.id}>
                   <TableCell>{schedule.doctor_name}</TableCell>
                   <TableCell>{schedule.department || "-"}</TableCell>
-                  <TableCell>{`${schedule.start_time || "--"} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time || "--"} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
                   <TableCell>{schedule.consultation_fee ? `₹${schedule.consultation_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.review_fee ? `₹${schedule.review_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.status || "available"}</TableCell>
