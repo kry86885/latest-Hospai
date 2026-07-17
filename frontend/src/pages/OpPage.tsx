@@ -678,7 +678,7 @@ if (!scheduleForm.doctor_name.trim() || !scheduleForm.schedule_date || !schedule
                 <TableRow key={schedule.id}>
                   <TableCell>{schedule.doctor_name}</TableCell>
                   <TableCell>{schedule.department || "-"}</TableCell>
-                  <TableCell>{`${schedule.start_time} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
+                  <TableCell>{`${schedule.start_time || "--"} ${getAmPmLabel(schedule.start_time)} - ${schedule.end_time || "--"} ${getAmPmLabel(schedule.end_time)}`}</TableCell>
                   <TableCell>{schedule.consultation_fee ? `₹${schedule.consultation_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.review_fee ? `₹${schedule.review_fee}` : "-"}</TableCell>
                   <TableCell>{schedule.status || "available"}</TableCell>
