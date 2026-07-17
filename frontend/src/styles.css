@@ -6103,18 +6103,20 @@ main {
 }
 .sidebar .brand {
   display: block !important;
-  width: 100% !important;
-  padding: 0.75rem 0 !important;
-  margin: 0 !important;
+  width: calc(100% + 1.8rem) !important;
+  margin: -1.05rem -0.9rem 0.5rem -0.9rem !important;
+  padding: 1.25rem 0.5rem !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(24, 57, 83, 0.08);
   text-align: center !important;
 }
 .sidebar .brand .brand-logo-img,
 .sidebar .brand .brand-logo-fallback {
-  width: 100% !important;
+  width: 90% !important;
   margin: 0 auto !important;
-  max-width: 220px !important;
+  max-width: 210px !important;
   height: auto !important;
-  max-height: 80px !important;
+  max-height: 85px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   background: transparent !important;

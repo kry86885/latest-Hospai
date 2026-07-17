@@ -13,7 +13,6 @@ function hasRequiredChild(children: React.ReactNode): boolean {
         found = true;
         return;
       }
-      // recurse into child props.children
       if (props.children) {
         if (hasRequiredChild(props.children)) {
           found = true;
@@ -48,12 +47,10 @@ function containsExistingMarker(children: React.ReactNode): boolean {
 }
 
 function stripTrailingAsteriskFromStringNode(text: string) {
-  // remove trailing asterisks and any preceding spaces
   return text.replace(/\s*\*+\s*$/u, "");
 }
 
 function cleanChildren(nodes: React.ReactNode): React.ReactNode {
-  // Remove trailing literal '*' from string children to avoid duplicate markers
   return React.Children.map(nodes, (child) => {
     if (typeof child === "string") {
       return stripTrailingAsteriskFromStringNode(child);
@@ -68,61 +65,40 @@ function cleanChildren(nodes: React.ReactNode): React.ReactNode {
   });
 }
 
-function insertAsterisk(nodes: React.ReactNode, isRequired: boolean, alreadyHasMarker: boolean): React.ReactNode {
-  if (!isRequired || alreadyHasMarker) return nodes;
+function partitionLabelChildren(children: React.ReactNode): {
+  labelPart: React.ReactNode[];
+  controlPart: React.ReactNode[];
+} {
+  const labelPart: React.ReactNode[] = [];
+  const controlPart: React.ReactNode[] = [];
 
-  let inserted = false;
+  React.Children.forEach(children, (child) => {
+    if (child === null || child === undefined) return;
 
-  function process(children: React.ReactNode): React.ReactNode {
-    return React.Children.map(children, (child) => {
-      if (inserted) return child;
-
-      if (typeof child === "string" || typeof child === "number") {
-        inserted = true;
-        return (
-          <>
-            {child}
-            <span className="required-marker" aria-hidden="true">*</span>
-          </>
-        );
+    if (typeof child === "string" || typeof child === "number") {
+      labelPart.push(child);
+    } else if (React.isValidElement(child)) {
+      const type = (child.type as any)?.displayName || (child.type as any)?.name || child.type;
+      if (
+        type === "Input" ||
+        type === "Select" ||
+        type === "Textarea" ||
+        type === "input" ||
+        type === "select" ||
+        type === "textarea" ||
+        type === "div" ||
+        (type === "span" && String((child.props as any).className || "").includes("badge"))
+      ) {
+        controlPart.push(child);
+      } else {
+        labelPart.push(child);
       }
+    } else {
+      labelPart.push(child);
+    }
+  });
 
-      if (React.isValidElement(child)) {
-        const type = (child.type as any)?.displayName || (child.type as any)?.name || child.type;
-        if (
-          type === "Input" ||
-          type === "Select" ||
-          type === "Textarea" ||
-          type === "input" ||
-          type === "select" ||
-          type === "textarea" ||
-          type === "div"
-        ) {
-          return child;
-        }
-
-        const props: any = child.props || {};
-        if (props.children) {
-          const cleaned = process(props.children);
-          if (inserted) {
-            return React.cloneElement(child as React.ReactElement, { ...props, children: cleaned });
-          }
-        }
-      }
-      return child;
-    });
-  }
-
-  const result = process(nodes);
-  if (!inserted) {
-    return (
-      <>
-        <span className="required-marker" aria-hidden="true">*</span>
-        {nodes}
-      </>
-    );
-  }
-  return result;
+  return { labelPart, controlPart };
 }
 
 function Label({ className, children, required, ...props }: LabelProps) {
@@ -137,11 +113,19 @@ function Label({ className, children, required, ...props }: LabelProps) {
   const domProps = { ...props } as React.LabelHTMLAttributes<HTMLLabelElement>;
   delete (domProps as any).required;
 
-  const content = insertAsterisk(cleanedChildren, isRequired, alreadyHasMarker);
+  const { labelPart, controlPart } = partitionLabelChildren(cleanedChildren);
 
   return (
     <label className={cn("ui-label", className)} {...domProps}>
-      {content}
+      {labelPart.length > 0 && (
+        <span className="label-text">
+          {labelPart}
+          {isRequired && !alreadyHasMarker && (
+            <span className="required-marker" aria-hidden="true">*</span>
+          )}
+        </span>
+      )}
+      {controlPart}
     </label>
   );
 }
