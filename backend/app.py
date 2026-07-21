@@ -32,6 +32,16 @@ from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 from fpdf import FPDF
+from utils.pdf_report_template import (
+    VeraraReportPDF,
+    draw_light_logo_watermark,
+    draw_report_footer,
+    draw_report_header,
+    draw_report_table,
+    draw_report_title_and_metadata,
+    draw_section_heading,
+    format_report_amount,
+)
 from utils.auth import (
     ADMIN_ROUTE_AUTH_COOKIE_NAME,
     ADMIN_ROUTE_AUTH_TTL_SECONDS,
@@ -1480,7 +1490,7 @@ class DashboardPDF(FPDF):
         self.cell(90, 5, f"{self.page_no()}/{{nb}}", align="R")
 
 
-def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"):
+def _generate_executive_dashboard_pdf_legacy(hospital_id=None, hostname="localhost:5001"):
     now = current_ist_datetime()
     data = _fetch_dashboard_pdf_data(hospital_id=hospital_id)
     total_beds = max(_int_value(data["total_beds"]), 1)
@@ -1702,6 +1712,101 @@ def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001"
     return bytes(data_bytes)
 
 
+def generate_executive_dashboard_pdf(hospital_id=None, hostname="localhost:5001", operator_name=None):
+    """Generate the reusable Verara executive dashboard print format.
+
+    Data is fetched from the live dashboard tables, while all report chrome is
+    delegated to ``utils.pdf_report_template`` so invoices and future reports
+    can share the same visual system.
+    """
+    now = current_ist_datetime()
+    data = _fetch_dashboard_pdf_data(hospital_id=hospital_id)
+    font = "Helvetica"
+    loaded_font_info = None
+    for regular, bold, name in (
+        ("C:\\Windows\\Fonts\\arial.ttf", "C:\\Windows\\Fonts\\arialbd.ttf", "Arial"),
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "DejaVu"),
+    ):
+        if os.path.exists(regular) and os.path.exists(bold):
+            font, loaded_font_info = name, (regular, bold, name)
+            break
+
+    pdf = VeraraReportPDF(font_name=font, generated_at=now, operator_name=operator_name or "Operator Name")
+    if loaded_font_info:
+        try:
+            pdf.add_font(loaded_font_info[2], "", loaded_font_info[0])
+            pdf.add_font(loaded_font_info[2], "B", loaded_font_info[1])
+        except Exception:
+            pdf.font_name = font = "Helvetica"
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    logo_path = _dashboard_report_logo_path()
+    draw_light_logo_watermark(pdf, logo_path)
+    draw_report_header(pdf, logo_path)
+    draw_report_title_and_metadata(
+        pdf,
+        "Executive Dashboard Report",
+        "Hospital Performance & Revenue Summary",
+    )
+
+    draw_section_heading(pdf, "Dashboard Summary")
+    draw_report_table(
+        pdf,
+        ["Metric", "Value", "Remarks"],
+        [
+            ["Today's Registrations", data.get("registrations_today", 0), "New patient registrations today"],
+            ["Today's Revenue", format_report_amount(data.get("today_revenue")), "Live invoice total for today"],
+            ["Monthly Revenue", format_report_amount(data.get("monthly_revenue")), "Live invoice total for this month"],
+            ["Lab Revenue", format_report_amount(data.get("lab_revenue")), "Current month diagnostics revenue"],
+            ["Pharmacy Revenue", format_report_amount(data.get("pharmacy_revenue")), "Current month pharmacy sales"],
+        ],
+        [60, 34, 76],
+    )
+
+    op_count = _int_value(data.get("daily_op"))
+    draw_section_heading(pdf, "Today's Operations")
+    draw_report_table(
+        pdf,
+        ["Module", "Count", "Completed", "Pending"],
+        [
+            ["OP Patients", op_count, _int_value(data.get("op_completed")), _int_value(data.get("op_waiting"))],
+            ["IP Patients", _int_value(data.get("daily_ip")), 0, _int_value(data.get("occupied_beds"))],
+            ["Lab Tests", _int_value(data.get("lab_tests_today")), _int_value(data.get("completed_lab_reports")), _int_value(data.get("pending_lab_reports"))],
+            ["Lab Reports", _int_value(data.get("lab_tests_today")), _int_value(data.get("completed_lab_reports")), _int_value(data.get("pending_lab_reports"))],
+            ["Pharmacy Bills", _int_value(data.get("pharmacy_bills_today")), _int_value(data.get("pharmacy_bills_completed")), _int_value(data.get("pharmacy_pending_bills"))],
+            ["Prescriptions", _int_value(data.get("prescriptions_today")), _int_value(data.get("prescriptions_completed")), max(_int_value(data.get("prescriptions_today")) - _int_value(data.get("prescriptions_completed")), 0)],
+            ["Follow Ups", _int_value(data.get("followups_today")), _int_value(data.get("followups_completed")), max(_int_value(data.get("followups_today")) - _int_value(data.get("followups_completed")), 0)],
+        ],
+        [52, 39, 39, 40],
+    )
+
+    draw_section_heading(pdf, "Revenue Snapshot")
+    draw_report_table(
+        pdf,
+        ["Revenue Head", "Amount"],
+        [
+            ["Today Revenue", format_report_amount(data.get("today_revenue"))],
+            ["Monthly Revenue", format_report_amount(data.get("monthly_revenue"))],
+            ["Lab Revenue", format_report_amount(data.get("lab_revenue"))],
+            ["Pharmacy Revenue", format_report_amount(data.get("pharmacy_revenue"))],
+            ["Outstanding Amount", format_report_amount(data.get("outstanding_amount"))],
+        ],
+        [116, 54],
+    )
+
+    payment_rows = [[row.get("label") or "Unknown", format_report_amount(row.get("count"))] for row in data.get("payment_modes", [])]
+    if not payment_rows:
+        payment_rows = [["No collections recorded today", format_report_amount(0)]]
+    payment_rows.append(["Total Collected", format_report_amount(data.get("total_collected"))])
+    draw_section_heading(pdf, "Payment Summary")
+    draw_report_table(pdf, ["Payment Mode", "Amount"], payment_rows, [116, 54], bold_last_row=True)
+    draw_report_footer(pdf)
+
+    output = pdf.output(dest="S")
+    return output.encode("latin-1") if isinstance(output, str) else bytes(output)
+
+
 @app.post("/api/share/upload")
 @require_session
 def share_upload():
@@ -1778,7 +1883,13 @@ def _build_dashboard_export_payload():
 @require_session
 def dashboard_export_pdf():
     try:
-        pdf_bytes = generate_executive_dashboard_pdf(hospital_id=current_hospital_id(), hostname=(request.host or "localhost:5001"))
+        user = getattr(g, "current_user", None) or {}
+        operator_name = user.get("full_name") or user.get("username") or "Operator Name"
+        pdf_bytes = generate_executive_dashboard_pdf(
+            hospital_id=current_hospital_id(),
+            hostname=(request.host or "localhost:5001"),
+            operator_name=operator_name,
+        )
         response = send_file(
             io.BytesIO(pdf_bytes),
             mimetype="application/pdf",
@@ -2374,13 +2485,6 @@ def op_doctor_schedules_list():
 @require_permissions("patients.write")
 def op_doctor_schedules_create():
     payload = request.get_json(force=True)
-<<<<<<< HEAD
-    validation_error = validate_required_fields(
-        payload, ["doctor_name", "schedule_date", "start_time", "end_time"]
-    )
-    if validation_error:
-        return validation_error
-=======
     # Only doctor_name is required; date and time are optional (permanent roster)
     validation_error = validate_required_fields(payload, ["doctor_name"])
     if validation_error:
@@ -2392,7 +2496,6 @@ def op_doctor_schedules_create():
         payload["start_time"] = "09:00"
     if not payload.get("end_time"):
         payload["end_time"] = "13:00"
->>>>>>> origin/main
     try:
         schedule_id = create_doctor_schedule(payload)
     except ValueError as exc:
@@ -2405,9 +2508,6 @@ def op_doctor_schedules_create():
     )
     return jsonify({"schedule_id": schedule_id})
 
-
-<<<<<<< HEAD
-=======
 @app.get("/api/op/doctors")
 @require_permissions("patients.read")
 def op_doctors_list():
@@ -2430,9 +2530,6 @@ def op_doctors_list():
                 "status": row["status"] or "available",
             }
     return jsonify({"doctors": list(seen.values())})
-
-
->>>>>>> origin/main
 @app.put("/api/op/doctor-schedules/<int:schedule_id>")
 @require_permissions("patients.write")
 def op_doctor_schedules_update(schedule_id):

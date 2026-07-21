@@ -1175,15 +1175,9 @@ def ensure_hospai_module_tables(conn):
             id {id_column},
             doctor_name TEXT NOT NULL,
             department TEXT,
-<<<<<<< HEAD
-            schedule_date DATE NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT NOT NULL,
-=======
             schedule_date DATE,
             start_time TEXT,
             end_time TEXT,
->>>>>>> origin/main
             slot_capacity INTEGER DEFAULT 12,
             consultation_fee REAL DEFAULT 0,
             review_fee REAL DEFAULT 0,
@@ -1200,8 +1194,6 @@ def ensure_hospai_module_tables(conn):
     if "review_fee" not in doctor_schedule_columns:
         cursor.execute("ALTER TABLE doctor_schedules ADD COLUMN review_fee REAL DEFAULT 0")
 
-<<<<<<< HEAD
-=======
     # Migration: make schedule_date, start_time, end_time nullable.
     # We query information_schema to check if columns are NOT NULL, and ALTER them accordingly.
     try:
@@ -1221,8 +1213,6 @@ def ensure_hospai_module_tables(conn):
             cursor.execute("ALTER TABLE doctor_schedules ALTER COLUMN end_time DROP NOT NULL")
     except Exception:
         pass  # If migration fails, ignore safely
-
->>>>>>> origin/main
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS patient_consents (
@@ -2601,20 +2591,11 @@ def _expand_schedule_dates(raw_schedule_date):
 def create_doctor_schedule(data):
     with get_connection() as conn:
         cursor = conn.cursor()
-<<<<<<< HEAD
-        schedule_dates = _expand_schedule_dates(data.get("schedule_date"))
-=======
->>>>>>> origin/main
         slot_capacity = int(data.get("slot_capacity") or 12)
         consultation_fee = _coerce_float(data.get("consultation_fee"))
         review_fee = _coerce_float(data.get("review_fee"))
         status = data.get("status", "available")
         notes = data.get("notes")
-<<<<<<< HEAD
-        new_start = data["start_time"]
-        new_end = data["end_time"]
-        doctor_name = data["doctor_name"]
-=======
         doctor_name = data["doctor_name"]
         new_start = data.get("start_time") or "09:00"
         new_end = data.get("end_time") or "13:00"
@@ -2646,7 +2627,6 @@ def create_doctor_schedule(data):
 
         # --- Date-specific schedule (original path) ---
         schedule_dates = _expand_schedule_dates(raw_date)
->>>>>>> origin/main
         created_ids = []
         for schedule_date in schedule_dates:
             date_str = schedule_date.isoformat()

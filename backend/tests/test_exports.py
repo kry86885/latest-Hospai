@@ -1,5 +1,7 @@
 import io
 
+from pypdf import PdfReader
+
 
 def test_ocr_missing_file(auth_client):
     response = auth_client.post("/api/ocr", data={})
@@ -68,6 +70,18 @@ def test_export_pdf(auth_client):
     assert response.status_code == 200
     assert response.mimetype == "application/pdf"
     assert response.data
+
+
+def test_dashboard_pdf_uses_verara_report_template(auth_client):
+    response = auth_client.get("/api/dashboard/export/pdf")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    assert response.data.startswith(b"%PDF")
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(response.data)).pages)
+    assert "Executive Dashboard Report" in text
+    assert "Dashboard Summary" in text
+    assert "Today's Operations" in text
 
 
 def test_export_word(auth_client):
